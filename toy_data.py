@@ -1,6 +1,5 @@
 # Import packages from lib.py
 import sys
-sys.path.append('..')
 import lib
 
 # Accepts hyper-parameters describing the data distribution and returns
