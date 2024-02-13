@@ -3,7 +3,7 @@ import sys
 sys.path.append('..')
 sys.path.append('.')
 import lib
-# from data import *
+from data import *
 
 # # Number of samples
 # n_samples = 2000
