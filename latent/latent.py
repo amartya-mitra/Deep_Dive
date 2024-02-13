@@ -1,7 +1,7 @@
 # Import packages from lib.py
 import sys
 sys.path.append('..')
-from toy_data import *
+from data import *
 
 # Number of samples
 n_samples = 2000
