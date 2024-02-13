@@ -1,5 +1,7 @@
 # Import packages from lib.py
-from .. import lib
+import sys
+sys.path.append('..')
+import lib
 
 # Accepts hyper-parameters describing the data distribution and returns
 # the tuple (features, labels)
