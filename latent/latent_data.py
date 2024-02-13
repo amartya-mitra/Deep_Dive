@@ -1,5 +1,5 @@
 # Import packages from lib.py
-from lib import *
+from .lib import *
 
 # Accepts hyper-parameters describing the data distribution and returns
 # the tuple (features, labels)
