@@ -1,10 +1,9 @@
-# Import packages from lib.py
 import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '')))
 # sys.path.append('.')
-import lib, data
-
+from lib import *
+from data import *
 
 # Number of samples
 n_samples = 2000

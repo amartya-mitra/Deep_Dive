@@ -1,6 +1,8 @@
 # Accepts hyper-parameters describing the data distribution and returns
 # the tuple (features, labels)
 
+from lib import *
+
 def get_toy_data(n_samples, feature_dict, seed, add_noise=False):
   np.random.seed(seed)
   torch.manual_seed(seed)
