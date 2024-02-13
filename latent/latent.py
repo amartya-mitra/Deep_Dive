@@ -2,7 +2,8 @@
 import sys
 sys.path.append('..')
 # sys.path.append('.')
-import lib
+import libc
+import data
 
 # # Number of samples
 # n_samples = 2000
