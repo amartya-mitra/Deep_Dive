@@ -1,6 +1,6 @@
 # Import packages from lib.py
 import sys
-sys.path.append('..')
+sys.path.append('.')
 from data import *
 
 # Number of samples
