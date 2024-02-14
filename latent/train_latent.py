@@ -53,4 +53,4 @@ model = train_model(model, epochs, use_es, use_gpu, train_dict, X, y.float().vie
 # Plot decision boundary
 toy_plot(model, X, y, feature_dict, activation_func, seed)
 
-print('Yay!')
+print('Naaay!')
