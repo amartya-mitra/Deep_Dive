@@ -8,23 +8,6 @@ from data import *
 from toy_model import *
 exec(open("./toy_model.py").read())
 
-import sys
-import importlib
-
-# Get a copy of the list of module names to avoid modifying the dict while iterating
-module_names = list(sys.modules.keys())
-
-for module_name in module_names:
-    # Skip reloading built-in modules and modules not loaded from a file (e.g., namespace packages)
-    if not hasattr(sys.modules[module_name], '__file__'):
-        continue
-
-    try:
-        # Attempt to reload the module
-        importlib.reload(sys.modules[module_name])
-    except Exception as e:
-        print(f"Failed to reload: {module_name}: {e}")
-
 # Number of samples
 n_samples = 2000
 feature_dict, seed, add_noise = init_config(n_samples)
