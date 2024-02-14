@@ -6,6 +6,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', ''
 from lib import *
 from data import *
 from toy_model import *
+importlib.reload(toy_model.toy_plot)
 
 # Number of samples
 n_samples = 2000
