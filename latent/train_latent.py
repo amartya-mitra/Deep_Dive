@@ -5,7 +5,6 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', ''
 from lib import *
 from data import *
 from toy_model import *
-import toy_model as model_lib
 
 # Number of samples
 n_samples = 2000
@@ -40,9 +39,9 @@ use_gpu = True
 
 # Creating the model instance
 model = BinaryClassifier(input_dim, n_layer, hidden_dim, activation_func)
-# model = train_model(model, epochs, use_es, use_gpu, train_dict, X, y.float().view(-1, 1), seed)
+model = train_model(model, epochs, use_es, use_gpu, train_dict, X, y.float().view(-1, 1), seed)
 
-if model_lib.count_parameters(model) > X.shape[0]:
+if count_parameters(model) > X.shape[0]:
   print('The model is overparametrized')
 else:
   print('The model is underparametrized')
