@@ -37,6 +37,15 @@ input_dim = X.shape[1]
 X = X.to(torch.float32)
 use_gpu = True
 
+import matplotlib.pyplot as plt
+
+plt.figure(figsize=(12, 6))
+# Your plotting commands
+plt.plot([1, 2, 3], [4, 5, 6])
+# Other plotting configurations
+
+plt.show()
+
 # Creating the model instance
 model = BinaryClassifier(input_dim, n_layer, hidden_dim, activation_func)
 model = train_model(model, epochs, use_es, use_gpu, train_dict, X, y.float().view(-1, 1), seed)
