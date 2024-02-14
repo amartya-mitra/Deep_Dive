@@ -6,6 +6,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', ''
 from lib import *
 from data import *
 from toy_model import *
+exec(open("./toy_model.py").read())
 
 import sys
 import importlib
