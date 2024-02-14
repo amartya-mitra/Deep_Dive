@@ -1,10 +1,14 @@
 import sys
 import os
+import importlib
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '')))
 # sys.path.append('.')
 from lib import *
 from data import *
 from toy_model import *
+
+for module in sys.modules.values():
+    importlib.reload(module)
 
 # Number of samples
 n_samples = 2000
