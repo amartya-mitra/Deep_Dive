@@ -40,3 +40,8 @@ use_gpu = True
 # Creating the model instance
 model = BinaryClassifier(input_dim, n_layer, hidden_dim, activation_func)
 model = train_model(model, epochs, use_es, use_gpu, train_dict, X, y.float().view(-1, 1), seed)
+
+if count_parameters(model) > X.shape[0]:
+  print('The model is overparametrized')
+else:
+  print('The model is underparametrized')

@@ -160,3 +160,7 @@ def train_model(model, epochs, use_es, use_gpu, train_dict, inputs, target, seed
   # The model is now trained on the dataset with two features
   # and the associated binary labels using a single output node and BCE loss
   return model
+
+# Code to determine number of trainable parameters in the model
+def count_parameters(model):
+  return sum(p.numel() for p in model.parameters() if p.requires_grad)
