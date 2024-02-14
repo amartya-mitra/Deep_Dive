@@ -6,7 +6,6 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', ''
 from lib import *
 from data import *
 from toy_model import *
-exec(open("./toy_model.py").read())
 
 # Number of samples
 n_samples = 2000
@@ -53,3 +52,5 @@ model = train_model(model, epochs, use_es, use_gpu, train_dict, X, y.float().vie
 
 # Plot decision boundary
 toy_plot(model, X, y, feature_dict, activation_func, seed)
+
+print('Yay!')
