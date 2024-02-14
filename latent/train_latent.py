@@ -37,10 +37,6 @@ input_dim = X.shape[1]
 X = X.to(torch.float32)
 use_gpu = True
 
-import matplotlib.pyplot as plt
-from IPython.core.interactiveshell import InteractiveShell
-InteractiveShell.ast_node_interactivity = "all"
-
 plt.figure(figsize=(12, 6))
 # Your plotting commands
 plt.plot([1, 2, 3], [4, 5, 6])
