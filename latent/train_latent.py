@@ -7,9 +7,6 @@ from lib import *
 from data import *
 from toy_model import *
 
-for module in sys.modules.values():
-    importlib.reload(module)
-
 # Number of samples
 n_samples = 2000
 feature_dict, seed, add_noise = init_config(n_samples)
