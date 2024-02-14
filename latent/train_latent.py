@@ -38,6 +38,7 @@ X = X.to(torch.float32)
 use_gpu = True
 
 import matplotlib
+matplotlib.use('TkAgg')
 print(matplotlib.get_backend())
 
 # Creating the model instance
