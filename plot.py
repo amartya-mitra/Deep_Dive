@@ -1,4 +1,5 @@
 from lib import *
+%matplotlib inline
 
 def plot_metrics(train_losses, test_losses, val_losses, train_errors, test_errors, val_errors):
   # Set modern style for plot elements
