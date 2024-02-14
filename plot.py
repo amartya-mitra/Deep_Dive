@@ -30,3 +30,49 @@ def plot_metrics(train_losses, test_losses, val_losses, train_errors, test_error
 
   plt.tight_layout()  # Adjust spacing between subplots
   plt.show()
+
+def toy_plot(model, data, y, feature_dict, activation_func, seed):
+  np.random.seed(seed)
+  torch.manual_seed(seed)
+  torch.cuda.manual_seed(seed)
+  torch.backends.cudnn.deterministic = True
+
+  features = data[:, :2].numpy()  # Assuming data is a 2D Torch Tensor
+  labels = y.numpy()  # Assuming labels are in the third column
+
+  x_min, x_max = features[:, 0].min(), features[:, 0].max()
+  y_min, y_max = features[:, 1].min(), features[:, 1].max()
+
+  x_min = (x_min * 1.1) if x_min < 0 else (x_min * 0.9)
+  x_max = (x_max * 1.1) if x_max > 0 else (x_max * 0.9)
+  y_min = (y_min * 1.1) if y_min < 0 else (y_min * 0.9)
+  y_max = (y_max * 1.1) if y_max > 0 else (y_max * 0.9)
+
+  xx, yy = np.meshgrid(np.linspace(x_min, x_max, 100), np.linspace(y_min, y_max, 100))
+  grid = torch.Tensor(np.c_[xx.ravel(), yy.ravel()])
+
+  if data.shape[1] > 2:
+    # Add noise to the grid
+    noise = np.random.randn(grid.shape[0], data.shape[1] - 2)
+    # noise = noise / np.linalg.norm(noise, 2, 1, keepdims=True)
+    noise = feature_dict['noise_multiplier'] * noise
+    grid = torch.cat([grid, torch.tensor(noise)], 1)
+
+  with torch.no_grad():
+    model.to('cpu')
+    z = model(grid.to(torch.float32)).numpy().reshape(xx.shape)  # Predict scores on the grid
+
+  plt.figure(figsize=(8, 6))
+
+  # Plot the decision boundary with a color gradient
+  plt.contourf(xx, yy, z, cmap='coolwarm', alpha=0.5)  # Adjust alpha for transparency
+
+  # Plot the data points with appropriate colors
+  plt.scatter(features[:, 0], features[:, 1], c=labels, cmap='coolwarm', edgecolors='k')
+
+  # Add labels and title
+  plt.xlabel("Core Feature")
+  plt.ylabel("Spurious Feature")
+  plt.title(f"Toy data with learned class decision boundary ({activation_func})")
+
+  plt.show()

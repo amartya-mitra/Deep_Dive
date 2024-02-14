@@ -39,9 +39,15 @@ use_gpu = True
 
 # Creating the model instance
 model = BinaryClassifier(input_dim, n_layer, hidden_dim, activation_func)
-model = train_model(model, epochs, use_es, use_gpu, train_dict, X, y.float().view(-1, 1), seed)
 
+# Determine the regime of the model
 if count_parameters(model) > X.shape[0]:
   print('The model is overparametrized')
 else:
   print('The model is underparametrized')
+
+# Training
+model = train_model(model, epochs, use_es, use_gpu, train_dict, X, y.float().view(-1, 1), seed)
+
+# Plot decision boundary
+toy_plot(model, X, y, feature_dict, activation_func, seed)
