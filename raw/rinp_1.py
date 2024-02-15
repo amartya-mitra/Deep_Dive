@@ -20,7 +20,7 @@ noise_multiplier = 0.1
 n_samples = 2000
 feature_dict, seed, add_noise = init_config(n_samples)
 # Reset the add_noise parameter
-feature_dict['add_noise'] = True
+add_noise = True
 
 # Generate data
 X, y = get_toy_data(n_samples, feature_dict, seed, add_noise)
