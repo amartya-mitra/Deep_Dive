@@ -69,3 +69,27 @@ def init_config(n_samples):
                   'noise_dampener': noise_dampener}
 
   return feature_dict, seed, add_noise
+
+def input_rotation(angle, input, feature_1, feature_2):
+  #Perform rotation
+
+  # Define the rotation angle θ in radians (e.g., 45 degrees)
+  theta = math.radians(angle)
+
+  # Construct the rotation matrix for 2D rotation
+  cos_theta, sin_theta = math.cos(theta), math.sin(theta)
+  rotation_matrix = torch.tensor([[cos_theta, -sin_theta],
+                                  [sin_theta, cos_theta]])
+
+  # Extract the first and third columns to apply the rotation
+  rotated_X = input.clone()
+  columns_to_rotate = rotated_X[:, [feature_1, feature_2]]
+
+  # Apply the rotation to the first and third columns
+  rotated_columns = columns_to_rotate @ rotation_matrix
+
+  # Replace the original first and third columns with the rotated ones
+  rotated_X[:, feature_1] = rotated_columns[:, 0]
+  rotated_X[:, feature_2] = rotated_columns[:, 1]
+
+  return rotated_X

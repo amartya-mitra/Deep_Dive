@@ -11,6 +11,7 @@ import torch.optim as optim
 import math
 from tqdm import tqdm
 from scipy.stats import ortho_group
+from copy import deepcopy
 
 import sys
 from IPython.core import ultratb
