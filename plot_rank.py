@@ -1,3 +1,5 @@
+from lib import *
+
 def plot_rank(se, le, xlabel, ylabel, title):
   # Set modern style for plot elements
   plt.style.use("seaborn-v0_8-pastel")  # Or choose a different style you prefer
