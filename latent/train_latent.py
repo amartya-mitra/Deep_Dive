@@ -7,6 +7,7 @@ from lib import *
 from data import *
 from toy_model import *
 from plot_rank import *
+from misc import *
 
 # Number of samples
 n_samples = 2000

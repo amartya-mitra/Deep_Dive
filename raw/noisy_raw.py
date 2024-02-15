@@ -9,6 +9,7 @@ from lib import *
 from data import *
 from toy_model import *
 from plot_rank import *
+from misc import *
 
 # Setup the data distribution
 # add noise?

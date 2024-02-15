@@ -51,17 +51,35 @@ train_dict = {'epochs': epochs,
 n_layer = 5  # Number of layers (Normal: 5, LH: 1)
 hidden_dim = 120  # Hidden layer dimension
 X = X.to(torch.float32)
-X_rot = input_rotation(10, X, 0, 1)
-input_dim = X_rot.shape[1]
+
+# Generate a 2x2 random tensor
+random_tensor = torch.randn(2, 2)
+# random_tensor = torch.tensor([[1, 0], [0, 1]], dtype=torch.float) # Unit tensor
+random_tensor = torch.tensor(ortho_group.rvs(dim=2), dtype=torch.float)
+
+# Multiply the input tensor with the 2x2 random tensor
+# This operation conforms to matrix multiplication rules, resulting in a n x 2 tensor
+X_m = torch.mm(X[:, :2], random_tensor)
+# X_m = torch.mm(X_m, random_tensor.T)
+
+# Apply a quadratic activation on top
+X_m = quadratic_activation(X_m)
+X_m = torch.cat((X_m, X[:, 2:]), dim=1)
+
+#############################################
+n_layer = 5  # Number of layers (Normal: 5, LH: 1)
+hidden_dim = 1200  # Hidden layer dimension
+input_dim = X_m.shape[1]
+use_gpu = True
 
 # Creating the model instance
-rot_model = BinaryClassifier(input_dim, n_layer, hidden_dim, activation_func)
-rot_model = train_model(rot_model, epochs, use_es, use_gpu, train_dict, X_rot, y.float().view(-1, 1))
+n_model = BinaryClassifier(input_dim, n_layer, hidden_dim, activation_func)
+n_model = train_model(n_model, epochs, use_es, use_gpu, train_dict, X_m, y.float().view(-1, 1))
 
 # Plot the decision boundary
-toy_plot(rot_model, X_rot, y, feature_dict, activation_func, seed)
+toy_plot(n_model, X_m, y, feature_dict, activation_func, seed)
 
-# Plot the layer ranks
-compute_layer_rank(rot_model, activation_func, 'wgt')
-compute_layer_rank(rot_model, activation_func, 'eff_wgt')
-compute_layer_rank(rot_model, activation_func, 'rep', False, X_rot)
+# # Plot the layer ranks
+compute_layer_rank(n_model, activation_func, 'wgt')
+compute_layer_rank(n_model, activation_func, 'eff_wgt')
+compute_layer_rank(n_model, activation_func, 'rep', False, X_m)
