@@ -1,3 +1,5 @@
+# Raw features generated as (Latent --> Add Noise dimensions --> Rotated core + spurious features)
+
 import sys
 import os
 import importlib

@@ -1,3 +1,5 @@
+# Raw features generated as (Latent --> Add Noise dimensions)
+
 import sys
 import os
 import importlib
