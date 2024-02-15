@@ -6,6 +6,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', ''
 from lib import *
 from data import *
 from toy_model import *
+from plot_rank import *
 
 # Number of samples
 n_samples = 2000
@@ -53,4 +54,11 @@ model = train_model(model, epochs, use_es, use_gpu, train_dict, X, y.float().vie
 # Plot decision boundary
 toy_plot(model, X, y, feature_dict, activation_func, seed)
 
-print('Naaay!')
+# Observation:
+# - For `linear` activations, even with a large number of additional noise dimensions, the decision boundary could be determined by the `core` features if it's strength/norm is comparable to the `spurious` features.
+# - In other words, memorization in this toy setup is promoted by the presence of a significant number of noise dimensions AND weak in strength, `core` features
+# - Note: Despite having stronger `spurious` features compared to the `core` features, the decision boundary is still determined by the `core` features. Upending the strength of the former, will eventually cause the decision boundary to be determined by the `spurious` features though
+
+compute_layer_rank(model, activation_func, 'wgt')
+compute_layer_rank(model, activation_func, 'eff_wgt')
+compute_layer_rank(model, activation_func, 'rep', False, X)
