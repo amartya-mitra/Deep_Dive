@@ -16,15 +16,11 @@ noise_dampener = 1 # 10: Memorize, 1: Generalize
 # Noise strength
 noise_multiplier = 0.1
 
+# Number of samples
 n_samples = 2000
-seed = 2
+feature_dict, seed, add_noise = init_config(n_samples)
+# Reset the add_noise parameter
+feature_dict['add_noise'] = True
 
-feature_dict = {'mu': mu,
-                'sigma': sigma,
-                'p': p,
-                'spurious_multiplier': spurious_multiplier,
-                'core_multiplier': core_multiplier,
-                'noise_multiplier': noise_multiplier,
-                'noise_dampener': noise_dampener}
-
+# Generate data
 X, y = get_toy_data(n_samples, feature_dict, seed, add_noise)
