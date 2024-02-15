@@ -62,3 +62,9 @@ toy_plot(model, X, y, feature_dict, activation_func, seed)
 compute_layer_rank(model, activation_func, 'wgt')
 compute_layer_rank(model, activation_func, 'eff_wgt')
 compute_layer_rank(model, activation_func, 'rep', False, X)
+
+# Observation:
+# - The peak in the representation rank (with depth) occurs only if the model learns the `core` feature
+# - The distance/depth of the peak in the representation rank (when it occurs) from the input layer, depends on the learnability of the `core` feature. I.e. if the `core` feature is not well learned, then the peak in the representation rank will be close to the input layer, and vice versa.
+# - **This raises a new question. How does the hypothesis of class sample diversity leading to deeper peaking of the representation rank, connect to the above?**
+#  - It kind of makes sense. The smaller the *tunnel*, the less the `spurious` features are learned. Now, diversity makes the model less prone to learn the `spurious` features. And hence, the supposed observation is that the representation rank will be deeper in the model.
