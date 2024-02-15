@@ -46,8 +46,8 @@ train_dict = {'epochs': epochs,
 
 n_layer = 5  # Number of layers (Normal: 5, LH: 1)
 hidden_dim = 120  # Hidden layer dimension
+X = X.to(torch.float32)
 X_rot = input_rotation(10, X, 0, 1)
-X_rot = X_rot.to(torch.float32)
 input_dim = X_rot.shape[1]
 
 # Creating the model instance
