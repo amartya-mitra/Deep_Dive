@@ -12,6 +12,8 @@ import math
 from tqdm import tqdm
 from scipy.stats import ortho_group
 from copy import deepcopy
+from functorch import make_functional, vmap, jacrev
+# from torch.func import jacrev, functional_call
 
 import sys
 from IPython.core import ultratb
