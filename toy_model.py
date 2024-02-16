@@ -4,6 +4,7 @@ import torch.optim as optim
 
 from lib import *
 from plot import *
+from misc import *
 
 class BinaryClassifier(nn.Module):
     def __init__(self, input_dim, num_hidden_layers, hidden_layer_width, activation_func):
@@ -23,7 +24,9 @@ class BinaryClassifier(nn.Module):
         elif activation_func == 'sigmoid':
             layers.append(nn.Sigmoid())
         elif activation_func == 'linear':
-            pass
+            layers.append(LinearActivation())
+        elif activation_func == 'quadratic':
+            layers.append(QuadraticActivation())
         else:
             raise ValueError("Unsupported activation function")
 
@@ -36,6 +39,10 @@ class BinaryClassifier(nn.Module):
                 layers.append(nn.Tanh())
             elif activation_func == 'sigmoid':
                 layers.append(nn.Sigmoid())
+            elif activation_func == 'linear':
+                layers.append(LinearActivation())
+            elif activation_func == 'quadratic':
+                layers.append(QuadraticActivation())
 
         # Add the output layer
         layers.append(nn.Linear(hidden_layer_width, 1))

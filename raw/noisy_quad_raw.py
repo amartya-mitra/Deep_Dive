@@ -37,8 +37,9 @@ min_loss_change = 0.0001
 no_improve_threshold = 100
 use_es = True
 loss_mp = 1
-activation_func = 'linear'
+activation_func = 'relu'
 use_gpu = True
+print('Activation function: ', activation_func)
 
 train_dict = {'epochs': epochs,
               'min_loss_change': min_loss_change,
