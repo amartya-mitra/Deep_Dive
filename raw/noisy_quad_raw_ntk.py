@@ -75,12 +75,20 @@ use_gpu = True
 
 # Creating the model instance
 model = BinaryClassifier(input_dim, n_layer, hidden_dim, activation_func)
-model = train_model(model, epochs, use_es, use_gpu, train_dict, X_m, y.float().view(-1, 1))
+jac_ntk = jac_NTK(model)
+jac = jac_ntk.get_jac(X_m)
+print(jac.shape)
 
-# Plot the decision boundary
-toy_plot(model, X_m, y, feature_dict, activation_func, seed)
+# Computing the NTK matrix
+ntk = batched_NTK(jac, use_gpu)
+print(ntk.shape)
 
-# # Plot the layer ranks
-compute_layer_rank(model, activation_func, 'wgt')
-compute_layer_rank(model, activation_func, 'eff_wgt')
-compute_layer_rank(model, activation_func, 'rep', False, X_m)
+# model = train_model(model, epochs, use_es, use_gpu, train_dict, X_m, y.float().view(-1, 1))
+
+# # Plot the decision boundary
+# toy_plot(model, X_m, y, feature_dict, activation_func, seed)
+
+# # # Plot the layer ranks
+# compute_layer_rank(model, activation_func, 'wgt')
+# compute_layer_rank(model, activation_func, 'eff_wgt')
+# compute_layer_rank(model, activation_func, 'rep', False, X_m)

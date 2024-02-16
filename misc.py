@@ -9,7 +9,7 @@ class QuadraticActivation(nn.Module):
     def forward(self, x):
         return x**2  # Quadratic function
 
-class NTK():
+class jac_NTK():
     def __init__(self, net):
         self.fnet, self.params = make_functional(net)
 
@@ -23,7 +23,22 @@ class NTK():
         jac = torch.cat([j.flatten(2) for j in jac], 2)
 
         return jac
-    
+
+def batched_NTK(x, use_gpu, batch_size=100):
+    """Compute the dot product in batches to reduce memory usage."""
+    device = torch.device('cuda' if torch.cuda.is_available() and use_gpu else 'cpu')
+    n = x.shape[0]
+    x.to(device)
+    result = torch.zeros((n, n), device=x.device)
+
+    for i in range(0, n, batch_size):
+        end_i = min(i + batch_size, n)
+        for j in range(0, n, batch_size):
+            end_j = min(j + batch_size, n)
+            result[i:end_i, j:end_j] = torch.matmul(x[i:end_i].squeeze(1), x[j:end_j].squeeze(1).transpose(0, 1))
+
+    return result
+
 def quadratic_activation(tensor):
     """Applies a quadratic activation function element-wise."""
     return tensor ** 2
