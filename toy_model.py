@@ -5,7 +5,6 @@ import torch.optim as optim
 from lib import *
 from plot import *
 
-
 class BinaryClassifier(nn.Module):
     def __init__(self, input_dim, num_hidden_layers, hidden_layer_width, activation_func):
         super(BinaryClassifier, self).__init__()
