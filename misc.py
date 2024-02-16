@@ -24,18 +24,25 @@ class jac_NTK():
 
         return jac
 
-def batched_NTK(x, use_gpu, batch_size=100):
+def compute_ntk(x, model, use_gpu, batch_size=100):
+    # Compute the Jacobian matrix
+    jac_ntk = jac_NTK(model)
+    jac = jac_ntk.get_jac(x)
+
+    # Compute the NTK matrix
+    
+
     """Compute the dot product in batches to reduce memory usage."""
     device = torch.device('cuda' if torch.cuda.is_available() and use_gpu else 'cpu')
-    n = x.shape[0]
-    x.to(device)
-    result = torch.zeros((n, n), device=x.device)
+    n = jac.shape[0]
+    jac.to(device)
+    result = torch.zeros((n, n), device=jac.device)
 
     for i in range(0, n, batch_size):
         end_i = min(i + batch_size, n)
         for j in range(0, n, batch_size):
             end_j = min(j + batch_size, n)
-            result[i:end_i, j:end_j] = torch.matmul(x[i:end_i].squeeze(1), x[j:end_j].squeeze(1).transpose(0, 1))
+            result[i:end_i, j:end_j] = torch.matmul(jac[i:end_i].squeeze(1), jac[j:end_j].squeeze(1).transpose(0, 1))
 
     return result
 

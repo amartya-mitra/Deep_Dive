@@ -75,13 +75,10 @@ use_gpu = True
 
 # Creating the model instance
 model = BinaryClassifier(input_dim, n_layer, hidden_dim, activation_func)
-jac_ntk = jac_NTK(model)
-jac = jac_ntk.get_jac(X_m)
-print(jac.shape)
 
 # Computing the NTK matrix
-ntk = batched_NTK(jac, use_gpu)
-print(ntk.shape)
+ntk_matrix = compute_ntk(X_m, model, use_gpu)
+print(ntk_matrix.shape)
 
 # model = train_model(model, epochs, use_es, use_gpu, train_dict, X_m, y.float().view(-1, 1))
 
