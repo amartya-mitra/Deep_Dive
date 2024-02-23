@@ -66,4 +66,8 @@ compute_layer_rank(model, activation_func, 'wgt')
 compute_layer_rank(model, activation_func, 'eff_wgt')
 compute_layer_rank(model, activation_func, 'rep', False, X)
 
-cka_similarity = layerwise_CKA(model, X, use_gpu)
+# Extract the latent features
+latent_X = X[:, :2]
+
+# Compute CKA similarity
+cka_similarity = layerwise_CKA(model, X, latent_X, use_gpu)

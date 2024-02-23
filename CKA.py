@@ -90,7 +90,7 @@ class CudaCKA(object):
         var2 = torch.sqrt(self.kernel_HSIC(Y, Y, sigma))
         return hsic / (var1 * var2)
 
-def layerwise_CKA(model, input, use_gpu):
+def layerwise_CKA(model, input, latents, use_gpu):
     layer_CKA = []
     le = []
     counter = 0
@@ -107,9 +107,13 @@ def layerwise_CKA(model, input, use_gpu):
     for layer_name, layer_output in layer_outputs.items():
         # Perform CKA
         if counter == 0:
-            print(f'CKA at layer {counter}:', cka.linear_CKA(input.to(device), input.to(device)).item())
+            print(f'Linear CKA at layer {counter}:', cka.linear_CKA(input.to(device), latents.to(device)).item())
+            print(f'RBF Kernel CKA at layer {counter}:', cka.kernel_CKA(input.to(device), latents.to(device)).item())
+            print()
             counter += 1
         
-        print(f'CKA at layer {counter}:', cka.linear_CKA(layer_output.to(device), input.to(device)).item())
+        print(f'Linear CKA at layer {counter}:', cka.linear_CKA(layer_output.to(device), latents.to(device)).item())
+        print(f'RBF Kernel CKA at layer {counter}:', cka.kernel_CKA(layer_output.to(device), latents.to(device)).item())
+        print()
         counter += 1
 #   #   layer_modules.append(layer_output)

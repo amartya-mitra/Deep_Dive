@@ -8,6 +8,7 @@ from data import *
 from toy_model import *
 from plot_rank import *
 from misc import *
+from CKA import *
 
 # Number of samples
 n_samples = 2000
@@ -63,6 +64,9 @@ toy_plot(model, X, y, feature_dict, activation_func, seed)
 compute_layer_rank(model, activation_func, 'wgt')
 compute_layer_rank(model, activation_func, 'eff_wgt')
 compute_layer_rank(model, activation_func, 'rep', False, X)
+
+# Compute CKA similarity
+cka_similarity = layerwise_CKA(model, X, X, use_gpu)
 
 # Observation:
 # - The peak in the representation rank (with depth) occurs only if the model learns the `core` feature
