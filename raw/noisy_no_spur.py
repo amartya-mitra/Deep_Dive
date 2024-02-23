@@ -1,4 +1,4 @@
-# Raw features generated as (Latent --> Add Noise dimensions)
+# Raw features generated as (Latent --> Add Noise dimensions --> Rotated core + spurious features)
 
 import sys
 import os
@@ -10,7 +10,6 @@ from data import *
 from toy_model import *
 from plot_rank import *
 from misc import *
-from CKA import *
 
 # Setup the data distribution
 # add noise?
@@ -39,6 +38,7 @@ no_improve_threshold = 100
 use_es = True
 loss_mp = 1
 activation_func = 'linear'
+use_gpu = True
 
 train_dict = {'epochs': epochs,
               'min_loss_change': min_loss_change,
@@ -50,13 +50,15 @@ train_dict = {'epochs': epochs,
 
 n_layer = 5  # Number of layers (Normal: 5, LH: 1)
 hidden_dim = 120  # Hidden layer dimension
-input_dim = X.shape[1]
 X = X.to(torch.float32)
-use_gpu = True
+# Drop the spurious feature from X
+X = torch.cat((X[:, :1], X[:, 2:]), dim=1)
+
+input_dim = X.shape[1]
 
 # Creating the model instance
 model = BinaryClassifier(input_dim, n_layer, hidden_dim, activation_func)
-model = train_model(model, epochs, use_es, use_gpu, train_dict, X, y.float().view(-1, 1), seed)
+model = train_model(model, epochs, use_es, use_gpu, train_dict, X, y.float().view(-1, 1))
 
 # Plot the decision boundary
 toy_plot(model, X, y, feature_dict, activation_func, seed)
@@ -65,5 +67,3 @@ toy_plot(model, X, y, feature_dict, activation_func, seed)
 compute_layer_rank(model, activation_func, 'wgt')
 compute_layer_rank(model, activation_func, 'eff_wgt')
 compute_layer_rank(model, activation_func, 'rep', False, X)
-
-cka_similarity = layerwise_CKA(model, X, use_gpu)
