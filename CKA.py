@@ -103,17 +103,34 @@ def layerwise_CKA(model, input, latents, use_gpu):
     else:
         cka = CudaCKA(device)
 
-#   # Capture the output of each layer
+    # Create 2D Torch Tensor of dimension len(layer_outputs)
+    cka_corr = torch.zeros(len(layer_outputs), len(layer_outputs))
+
+    '''
+#   Compute the individual CKA values of each layer w.r.t. the latent
     for layer_name, layer_output in layer_outputs.items():
         # Perform CKA
         if counter == 0:
-            print(f'Linear CKA at layer {counter}:', cka.linear_CKA(input.to(device), latents.to(device)).item())
+            # print(f'Linear CKA at layer {counter}:', cka.linear_CKA(input.to(device), latents.to(device)).item())
             print(f'RBF Kernel CKA at layer {counter}:', cka.kernel_CKA(input.to(device), latents.to(device)).item())
             print()
             counter += 1
         
-        print(f'Linear CKA at layer {counter}:', cka.linear_CKA(layer_output.to(device), latents.to(device)).item())
+        # print(f'Linear CKA at layer {counter}:', cka.linear_CKA(layer_output.to(device), latents.to(device)).item())
         print(f'RBF Kernel CKA at layer {counter}:', cka.kernel_CKA(layer_output.to(device), latents.to(device)).item())
         print()
         counter += 1
-#   #   layer_modules.append(layer_output)
+#   layer_modules.append(layer_output)
+    '''
+    i = 0
+#   Compute the inter-layer CKA values of the network
+    for layer_name_i, layer_output_i in layer_outputs.items():
+        j = 0
+        for layer_name_j, layer_output_j in layer_outputs.items():
+            cka_corr[i][j] = cka.kernel_CKA(layer_output_i.to(device), layer_output_j.to(device))
+            j += 1
+        i += 1
+    
+    # Plot the heatmap
+    ax = sns.heatmap(cka_corr.detach().cpu().numpy(), linewidth=0.5, cmap = sns.cm.rocket_r)
+    plt.show()
