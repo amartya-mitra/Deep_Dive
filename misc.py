@@ -227,3 +227,27 @@ def layerwise_CKA(model, input, latents, use_gpu):
     fig.set_title('Inter-layer Representation Similarity')
     plt.show()
     ###########################################################################
+
+class NTK(torch.nn.Module):
+    def __init__(self, net):
+        super().__init__()
+        self.net = net
+        self.fnet, self.params = make_functional(self.net)
+        pc = torch.tensor([p.flatten().shape[0] for p in self.net.parameters()])
+        pc = pc[::2] + pc[1::2]
+        self.pc = torch.cumsum(pc, dim=0)
+
+    def get_jac(self, x):
+        # K: number of parameters blocks, e.g., 2 for Linear
+        # n: number of examples in x
+        # block_size: the shape of each param block
+        # shape: K x n x out_dim x block_size
+        jac = vmap(jacrev(self.fnet), (None, 0))(self.params, x)
+        # shape: n x out_dim x num_all_params
+        jac = torch.cat([j.flatten(2) for j in jac], 2)
+        
+        return jac.detach()
+
+    def forward(self, jac):
+        flat_params = torch.cat([p.flatten() for p in self.net.parameters()])
+        return jac @ flat_params
