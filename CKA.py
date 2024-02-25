@@ -147,11 +147,11 @@ def layerwise_CKA(model, input, latents, use_gpu):
         i += 1
     
     # Plot the heatmap
-    fig_2 = sns.heatmap(cka_corr.detach().cpu().numpy(), 
+    fig = sns.heatmap(cka_corr.detach().cpu().numpy(), 
                     #  xticklabels=layer_outputs.keys(), 
                     #  yticklabels=layer_outputs.keys(), 
                      linewidth=0.5, 
                      cmap = sns.cm.rocket_r)
-    fig_2.set_title('Inter-layer Representation Similarity')
+    fig.set_title('Inter-layer Representation Similarity')
     plt.show()
     ###########################################################################
