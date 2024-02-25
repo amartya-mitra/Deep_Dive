@@ -91,6 +91,9 @@ class CudaCKA(object):
         return hsic / (var1 * var2)
 
 def layerwise_CKA(model, input, latents, use_gpu):
+    plt.style.use("seaborn-v0_8-pastel")  # Or choose a different style you prefer
+    plt.figure(figsize=(5, 5))
+    
     layer_CKA = []
     le = []
     counter = 0
@@ -106,24 +109,36 @@ def layerwise_CKA(model, input, latents, use_gpu):
     # Create 2D Torch Tensor of dimension len(layer_outputs)
     cka_corr = torch.zeros(len(layer_outputs), len(layer_outputs))
 
-    '''
+    ###########################################################################
 #   Compute the individual CKA values of each layer w.r.t. the latent
     for layer_name, layer_output in layer_outputs.items():
         # Perform CKA
         if counter == 0:
             # print(f'Linear CKA at layer {counter}:', cka.linear_CKA(input.to(device), latents.to(device)).item())
-            print(f'RBF Kernel CKA at layer {counter}:', cka.kernel_CKA(input.to(device), latents.to(device)).item())
-            print()
+            # print(f'RBF Kernel CKA at layer {counter}:', cka.kernel_CKA(input.to(device), latents.to(device)).item())
+            layer_CKA.append(cka.kernel_CKA(input.to(device), latents.to(device)).item())
             counter += 1
         
-        # print(f'Linear CKA at layer {counter}:', cka.linear_CKA(layer_output.to(device), latents.to(device)).item())
-        print(f'RBF Kernel CKA at layer {counter}:', cka.kernel_CKA(layer_output.to(device), latents.to(device)).item())
-        print()
+    #     # print(f'Linear CKA at layer {counter}:', cka.linear_CKA(layer_output.to(device), latents.to(device)).item())
+    #     # print(f'RBF Kernel CKA at layer {counter}:', cka.kernel_CKA(layer_output.to(device), latents.to(device)).item())
+        layer_CKA.append(cka.kernel_CKA(layer_output.to(device), latents.to(device)).item())
         counter += 1
-#   layer_modules.append(layer_output)
-    '''
-    i = 0
+    
+    ys = layer_CKA
+    xs = [x for x in range(len(ys))]
+
+    plt.plot(xs, ys, label="Latent-layer Representation Similarity", linestyle='solid', color='red')
+    # Customize axes, title, and background
+    plt.xlabel('Layer #', fontweight='light')
+    plt.ylabel('Latent-layer Representation Similarity', fontweight='light')
+    plt.grid(True)  # Turn on grid
+    plt.gca().set_facecolor('lightgray')  # Set plot background color
+    
+    plt.legend()
+    plt.show()
+    ###########################################################################
 #   Compute the inter-layer CKA values of the network
+    i = 0
     for layer_name_i, layer_output_i in layer_outputs.items():
         j = 0
         for layer_name_j, layer_output_j in layer_outputs.items():
@@ -132,5 +147,11 @@ def layerwise_CKA(model, input, latents, use_gpu):
         i += 1
     
     # Plot the heatmap
-    ax = sns.heatmap(cka_corr.detach().cpu().numpy(), linewidth=0.5, cmap = sns.cm.rocket_r)
+    fig_2 = sns.heatmap(cka_corr.detach().cpu().numpy(), 
+                    #  xticklabels=layer_outputs.keys(), 
+                    #  yticklabels=layer_outputs.keys(), 
+                     linewidth=0.5, 
+                     cmap = sns.cm.rocket_r)
+    fig_2.set_title('Inter-layer Representation Similarity')
     plt.show()
+    ###########################################################################
