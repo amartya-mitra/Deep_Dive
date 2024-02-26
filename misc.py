@@ -1,4 +1,5 @@
 from lib import *
+from plot import *
 
 # Activation functions
 class LinearActivation(nn.Module):
@@ -228,26 +229,154 @@ def layerwise_CKA(model, input, latents, use_gpu):
     plt.show()
     ###########################################################################
 
-class NTK(torch.nn.Module):
-    def __init__(self, net):
-        super().__init__()
-        self.net = net
-        self.fnet, self.params = make_functional(self.net)
-        pc = torch.tensor([p.flatten().shape[0] for p in self.net.parameters()])
-        pc = pc[::2] + pc[1::2]
-        self.pc = torch.cumsum(pc, dim=0)
+def set_seed(seed):
+  np.random.seed(seed)
+  torch.manual_seed(seed)
+  torch.cuda.manual_seed(seed)
+  torch.backends.cudnn.deterministic = True
 
-    def get_jac(self, x):
-        # K: number of parameters blocks, e.g., 2 for Linear
-        # n: number of examples in x
-        # block_size: the shape of each param block
-        # shape: K x n x out_dim x block_size
-        jac = vmap(jacrev(self.fnet), (None, 0))(self.params, x)
-        # shape: n x out_dim x num_all_params
-        jac = torch.cat([j.flatten(2) for j in jac], 2)
-        
-        return jac.detach()
+def split_data(inputs):
+  train_size = int(inputs.shape[0] * 0.6)
+  test_size = int(inputs.shape[0] * 0.2)
+  val_size = inputs.shape[0] - train_size - test_size
+  return train_size, test_size, val_size
 
-    def forward(self, jac):
-        flat_params = torch.cat([p.flatten() for p in self.net.parameters()])
-        return jac @ flat_params
+def train_model_loop(model, 
+                     optimizer, 
+                     criterion, 
+                     train_dict, 
+                     X_train, 
+                     y_train, 
+                     X_test, 
+                     y_test, 
+                     X_val, 
+                     y_val, 
+                     epochs, 
+                     use_early_stopping):
+  # For plotting metrics
+  train_losses, test_losses, val_losses = [], [], []
+  train_errors, test_errors, val_errors = [], [], []
+
+  # Calculate total steps for tqdm
+  total_steps = epochs
+  no_improve_threshold = train_dict['no_improve_threshold']
+  min_loss_change = train_dict['min_loss_change']
+  best_loss = float('inf')
+
+  # Training loop with a single tqdm bar for all epochs
+  with tqdm(total=total_steps, desc="Training Progress", position=0, leave=True) as pbar:
+    for epoch in range(epochs):
+      # Zero the parameter gradients
+      model.train()
+      optimizer.zero_grad()
+      running_loss = 0.0
+
+      # Forward pass
+      outputs = model(X_train)
+      loss = train_dict['loss_mp'] * criterion(outputs, (y_train + 1)/2)
+
+      # Backward and optimize
+      loss.backward()
+      optimizer.step()
+
+      ############## Compute Metrics ################
+      train_outputs = model(X_train)
+      train_loss = train_dict['loss_mp'] * criterion(train_outputs, (y_train + 1)/2)
+      train_predictions = torch.round(train_outputs)  # Convert probabilities to 0/1 predictions
+      train_error = torch.mean((train_predictions != (y_train + 1)/2).float())
+
+      test_outputs = model(X_test)
+      test_loss = train_dict['loss_mp'] * criterion(test_outputs, (y_test + 1)/2)
+      test_predictions = torch.round(test_outputs)  # Convert probabilities to 0/1 predictions
+      test_error = torch.mean((test_predictions != (y_test + 1)/2).float())
+
+      val_outputs = model(X_val)
+      val_loss = train_dict['loss_mp'] * criterion(val_outputs, (y_val + 1)/2)
+      val_predictions = torch.round(val_outputs)  # Convert probabilities to 0/1 predictions
+      val_error = torch.mean((val_predictions != (y_val + 1)/2).float())
+
+      ################## Append Metrics ###############
+
+      train_losses.append(train_loss.item())
+      train_errors.append(train_error.item())
+
+      test_losses.append(test_loss.item())
+      test_errors.append(test_error.item())
+
+      val_losses.append(val_loss.item())
+      val_errors.append(val_error.item())
+
+      if use_early_stopping:
+
+        # Average loss for this epoch
+        running_loss += loss.item()
+        epoch_loss = running_loss
+
+        # Check for improvement
+        if best_loss - epoch_loss > min_loss_change:
+            no_improve_epochs = 0
+            best_loss = epoch_loss
+        else:
+            no_improve_epochs += 1
+
+        # Early stopping check
+        if no_improve_epochs >= no_improve_threshold:
+            print(f'Early stopping triggered at epoch {epoch+1} with loss {epoch_loss:.4f}')
+            break
+
+      # # Print loss every 10 epochs
+      # if (epoch+1) % 100 == 0:
+      #     print(f'Epoch [{epoch+1}/{epochs}], Loss: {loss.item():.4f}, 0-1 Error: {train_error.item():.4f}')
+
+      # Update tqdm bar
+      pbar.update(1)
+      pbar.set_postfix_str(f'Loss: {loss.item():.4f}, 0-1 Error: {train_error.item():.4f}')
+
+  return train_losses, test_losses, val_losses, train_errors, test_errors, val_errors
+
+def train_model(model, epochs, use_early_stopping, use_gpu, train_dict, inputs, targets, seed=0):
+  # Set seed for reproducibility
+  set_seed(seed)
+
+  # Set device
+  device = torch.device('cuda' if torch.cuda.is_available() and use_gpu else 'cpu')
+
+  # Early stopping parameters
+  if use_early_stopping:
+    early_stopping_params = {
+        'min_loss_change': train_dict['min_loss_change'],  # Define 'substantial' change here
+        'no_improve_threshold': train_dict['no_improve_threshold']  # Stop if no improvement in 5 epochs
+    }
+
+  # Loss function and optimizer
+  criterion = nn.BCELoss()
+  optimizer = optim.SGD(model.parameters(),
+                        lr=train_dict['lr'],
+                        momentum=train_dict['momentum'])
+
+  # Split data into train, test, and validation sets
+  train_size, test_size, val_size = split_data(inputs)
+  X_train, y_train = inputs[:train_size].to(device), targets[:train_size].to(device)
+  X_test, y_test = inputs[train_size:train_size+test_size].to(device), targets[train_size:train_size+test_size].to(device)
+  X_val, y_val = inputs[train_size+test_size:].to(device), targets[train_size+test_size:].to(device)
+
+  # Move model to device
+  model.to(device)
+
+  # Training loop
+  train_losses, test_losses, val_losses, train_errors, test_errors, val_errors = train_model_loop(model, 
+                                                                                                  optimizer, 
+                                                                                                  criterion, 
+                                                                                                  train_dict, 
+                                                                                                  X_train, 
+                                                                                                  y_train, 
+                                                                                                  X_test, 
+                                                                                                  y_test, 
+                                                                                                  X_val, 
+                                                                                                  y_val, 
+                                                                                                  epochs, 
+                                                                                                  use_early_stopping)
+  
+  # Plot and return trained model
+  plot_metrics(train_losses, test_losses, val_losses, train_errors, test_errors, val_errors)
+  return model
