@@ -8,7 +8,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', ''
 from lib import *
 from data import *
 from toy_model import *
-from plot_rank import *
+from plot import *
 from misc import *
 
 # Setup the data distribution
@@ -83,7 +83,6 @@ elif mode == 1:
     # Lazy training
     ntk = NTK(model)
     inputs = ntk.get_jac(X, next(ntk.parameters()).device)
-    toy_plot(model, X, y, feature_dict, activation_func, seed)
 
     ntk = train_model(ntk,
                       epochs,
@@ -96,7 +95,7 @@ elif mode == 1:
     
     
     # Plot the layer ranks
-    # compute_layer_rank(ntk, activation_func, 'wgt')
-    # compute_layer_rank(ntk, activation_func, 'eff_wgt')
-    # compute_layer_rank(ntk, activation_func, 'rep', False, X)
+    compute_layer_rank(model, activation_func, 'wgt')
+    compute_layer_rank(model, activation_func, 'eff_wgt')
+    compute_layer_rank(model, activation_func, 'rep', False, X)
 
