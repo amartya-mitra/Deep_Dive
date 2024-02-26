@@ -56,8 +56,8 @@ mode = 1
 
 model = BinaryClassifier(input_dim, n_layer, hidden_dim, activation_func)
 
+# standard rich training
 if mode == 0:
-    # standard rich training
     model = train_model(model, 
                         epochs, 
                         use_es, 
@@ -79,8 +79,8 @@ if mode == 0:
     # Compute CKA similarity
     cka_similarity = layerwise_CKA(model, X, latent_X, use_gpu)
     
+# Lazy training
 elif mode == 1:
-    # Lazy training
     ntk = NTK(model)
     inputs = ntk.get_jac(X, next(ntk.parameters()).device)
 
