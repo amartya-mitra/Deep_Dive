@@ -30,14 +30,14 @@ X, y = get_toy_data(n_samples, feature_dict, seed, add_noise)
 
 ###############
 # Defining hyper-parameters
-epochs = 3500
+epochs = 1500
 lr = 0.02 # Normal:0.02, LH: 0.008
 momentum = 0.9
 min_loss_change = 0.0001
 no_improve_threshold = 100
 use_es = True
 loss_mp = 1
-activation_func = 'relu'
+activation_func = 'linear'
 
 train_dict = {'epochs': epochs,
               'min_loss_change': min_loss_change,
@@ -52,7 +52,7 @@ hidden_dim = 120  # Hidden layer dimension
 input_dim = X.shape[1]
 X = X.to(torch.float32)
 use_gpu = True
-mode = 1
+mode = 0
 
 model = BinaryClassifier(input_dim, n_layer, hidden_dim, activation_func)
 

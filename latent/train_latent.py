@@ -49,26 +49,55 @@ if count_parameters(model) > X.shape[0]:
 else:
   print('The model is underparametrized')
 
-# Training
-model = train_model(model, epochs, use_es, use_gpu, train_dict, X, y.float().view(-1, 1), seed)
+mode = 0
 
-# Plot decision boundary
-toy_plot(model, X, y, feature_dict, activation_func, seed)
+# standard rich training
+if mode == 0:
+    model = train_model(model, 
+                        epochs, 
+                        use_es, 
+                        use_gpu, 
+                        train_dict, 
+                        X, y.float().view(-1, 1), 
+                        seed)
+    
+    # Plot decision boundary
+    toy_plot(model, X, y, feature_dict, activation_func, seed)
+    
+    # Observation:
+    # - For `linear` activations, even with a large number of additional noise dimensions, the decision boundary could be determined by the `core` features if it's strength/norm is comparable to the `spurious` features.
+    # - In other words, memorization in this toy setup is promoted by the presence of a significant number of noise dimensions AND weak in strength, `core` features
+    # - Note: Despite having stronger `spurious` features compared to the `core` features, the decision boundary is still determined by the `core` features. Upending the strength of the former, will eventually cause the decision boundary to be determined by the `spurious` features though
 
-# Observation:
-# - For `linear` activations, even with a large number of additional noise dimensions, the decision boundary could be determined by the `core` features if it's strength/norm is comparable to the `spurious` features.
-# - In other words, memorization in this toy setup is promoted by the presence of a significant number of noise dimensions AND weak in strength, `core` features
-# - Note: Despite having stronger `spurious` features compared to the `core` features, the decision boundary is still determined by the `core` features. Upending the strength of the former, will eventually cause the decision boundary to be determined by the `spurious` features though
+    compute_layer_rank(model, activation_func, 'wgt')
+    compute_layer_rank(model, activation_func, 'eff_wgt')
+    compute_layer_rank(model, activation_func, 'rep', False, X)
 
-compute_layer_rank(model, activation_func, 'wgt')
-compute_layer_rank(model, activation_func, 'eff_wgt')
-compute_layer_rank(model, activation_func, 'rep', False, X)
+    # Compute CKA similarity
+    cka_similarity = layerwise_CKA(model, X, X, use_gpu)
 
-# Compute CKA similarity
-cka_similarity = layerwise_CKA(model, X, X, use_gpu)
+    # Observation:
+    # - The peak in the representation rank (with depth) occurs only if the model learns the `core` feature
+    # - The distance/depth of the peak in the representation rank (when it occurs) from the input layer, depends on the learnability of the `core` feature. I.e. if the `core` feature is not well learned, then the peak in the representation rank will be close to the input layer, and vice versa.
+    # - **This raises a new question. How does the hypothesis of class sample diversity leading to deeper peaking of the representation rank, connect to the above?**
+    #  - It kind of makes sense. The smaller the *tunnel*, the less the `spurious` features are learned. Now, diversity makes the model less prone to learn the `spurious` features. And hence, the supposed observation is that the representation rank will be deeper in the model.
 
-# Observation:
-# - The peak in the representation rank (with depth) occurs only if the model learns the `core` feature
-# - The distance/depth of the peak in the representation rank (when it occurs) from the input layer, depends on the learnability of the `core` feature. I.e. if the `core` feature is not well learned, then the peak in the representation rank will be close to the input layer, and vice versa.
-# - **This raises a new question. How does the hypothesis of class sample diversity leading to deeper peaking of the representation rank, connect to the above?**
-#  - It kind of makes sense. The smaller the *tunnel*, the less the `spurious` features are learned. Now, diversity makes the model less prone to learn the `spurious` features. And hence, the supposed observation is that the representation rank will be deeper in the model.
+# Lazy training
+elif mode == 1:
+    ntk = NTK(model)
+    inputs = ntk.get_jac(X, next(ntk.parameters()).device)
+
+    ntk = train_model(ntk,
+                      epochs,
+                      use_es, 
+                      use_gpu,
+                      train_dict, 
+                      inputs,
+                      y.float().view(-1, 1),
+                      seed)
+    
+    
+    # Plot the layer ranks
+    compute_layer_rank(model, activation_func, 'wgt')
+    compute_layer_rank(model, activation_func, 'eff_wgt')
+    compute_layer_rank(model, activation_func, 'rep', False, X)
