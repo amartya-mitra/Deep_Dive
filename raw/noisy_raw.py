@@ -30,7 +30,7 @@ X, y = get_toy_data(n_samples, feature_dict, seed, add_noise)
 
 ###############
 # Defining hyper-parameters
-epochs = 1500
+epochs = 3500
 lr = 0.02 # Normal:0.02, LH: 0.008
 momentum = 0.9
 min_loss_change = 0.0001
@@ -94,8 +94,6 @@ elif mode == 1:
                       y.float().view(-1, 1),
                       seed)
     
-    # Plot the decision boundary
-    toy_plot(model, X, y, feature_dict, activation_func, seed)
     
     # Plot the layer ranks
     # compute_layer_rank(ntk, activation_func, 'wgt')
