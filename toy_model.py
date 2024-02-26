@@ -63,12 +63,12 @@ class NTK(torch.nn.Module):
         pc = pc[::2] + pc[1::2]
         self.pc = torch.cumsum(pc, dim=0)
 
-    def get_jac(self, x):
+    def get_jac(self, x, device):
         # K: number of parameters blocks, e.g., 2 for Linear
         # n: number of examples in x
         # block_size: the shape of each param block
         # shape: K x n x out_dim x block_size
-        jac = vmap(jacrev(self.fnet), (None, 0))(self.params, x)
+        jac = vmap(jacrev(self.fnet), (None, 0))(self.params, x.to(device))
         # shape: n x out_dim x num_all_params
         jac = torch.cat([j.flatten(2) for j in jac], 2)
         
@@ -76,4 +76,15 @@ class NTK(torch.nn.Module):
 
     def forward(self, jac):
         flat_params = torch.cat([p.flatten() for p in self.net.parameters()])
-        return jac @ flat_params
+        return torch.sigmoid(jac @ flat_params)
+    
+    def to(self, device):
+      self.net.to(device)  # Move the base model
+      # Re-initialize functional parts that may depend on device-specific tensors
+      self.fnet, self.params = make_functional(self.net)
+      # Ensure tensors are reallocated on the correct device
+      # This assumes self.params and any other custom tensors are not meta tensors
+      # after re-initialization. If they are, additional handling will be needed.
+      self.pc = self.pc.to(device)
+      self.params = tuple(p.to(device) for p in self.params if p.is_cuda or p.device != device)
+      return self
