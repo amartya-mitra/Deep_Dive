@@ -48,7 +48,8 @@ def init_config(n_samples):
   # 1.0: Perfect correlation b/w spurious feature and target
   p = 0.98 # Normal: 0.98, LH: 0.5
   # Core feature strength
-  core_multiplier = 0.09 # 0.9 #0.01
+  # core_multiplier = 0.09 # 0.9 #0.01
+  core_multiplier = 0.09 # 0.9 #0.01 # Changed here
   # Spurious feature strength
   spurious_multiplier = 0.1
   # seed

@@ -47,12 +47,28 @@ train_dict = {'epochs': epochs,
               'momentum': momentum,
               'loss_mp': loss_mp}
 
-n_layer = 5  # Number of layers (Normal: 5, LH: 1)
-hidden_dim = 120  # Hidden layer dimension
+n_layer = 5  # Number of layers (Normal: 5, LH: 1) 
+hidden_dim = 120 # Hidden layer dimension
 input_dim = X.shape[1]
 X = X.to(torch.float32)
 use_gpu = True
 mode = 0
+
+##### Wandb Config #####
+
+config = {**feature_dict, 
+          **train_dict,
+          'n_layer': n_layer,
+          'hidden_dim': hidden_dim,
+          'input_dim': input_dim,
+          'activation_func': activation_func,
+          'use_es': use_es,
+          'use_gpu': use_gpu,
+          'mode': mode
+          }
+
+
+wandb.init(project='DeepDive', entity='amartya-mitra', config=config)
 
 model = BinaryClassifier(input_dim, n_layer, hidden_dim, activation_func)
 

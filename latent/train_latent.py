@@ -24,7 +24,7 @@ min_loss_change = 0.0001
 no_improve_threshold = 100
 use_es = True
 loss_mp = 1
-activation_func = 'relu'
+activation_func = 'linear'
 
 train_dict = {'epochs': epochs,
               'min_loss_change': min_loss_change,
@@ -39,6 +39,23 @@ hidden_dim = 120  # Hidden layer dimension
 input_dim = X.shape[1]
 X = X.to(torch.float32)
 use_gpu = True
+mode = 0
+
+##### Wandb Config #####
+
+config = {**feature_dict, 
+          **train_dict,
+          'n_layer': n_layer,
+          'hidden_dim': hidden_dim,
+          'input_dim': input_dim,
+          'activation_func': activation_func,
+          'use_es': use_es,
+          'use_gpu': use_gpu,
+          'mode': mode
+          }
+
+
+wandb.init(project='DeepDive', entity='amartya-mitra', config=config)
 
 # Creating the model instance
 model = BinaryClassifier(input_dim, n_layer, hidden_dim, activation_func)
@@ -48,8 +65,6 @@ if count_parameters(model) > X.shape[0]:
   print('The model is overparametrized')
 else:
   print('The model is underparametrized')
-
-mode = 0
 
 # standard rich training
 if mode == 0:

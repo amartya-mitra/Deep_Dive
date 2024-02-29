@@ -353,6 +353,9 @@ def train_model_loop(model,
       pbar.update(1)
       pbar.set_postfix_str(f'Loss: {loss.item():.4f}, 0-1 Error: {train_error.item():.4f}')
 
+      # Log metrics to wandb
+      wandb.log({"epoch": epoch, "loss": loss.item(), "accuracy": train_error.item()})
+
   return train_losses, test_losses, val_losses, train_errors, test_errors, val_errors
 
 def train_model(model, epochs, use_early_stopping, use_gpu, train_dict, inputs, targets, seed=0):
