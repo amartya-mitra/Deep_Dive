@@ -38,21 +38,23 @@ no_improve_threshold = 100
 use_es = True
 loss_mp = 1
 activation_func = 'relu'
+optimizer = 'adam'
 
 train_dict = {'epochs': epochs,
               'min_loss_change': min_loss_change,
               'no_improve_threshold': no_improve_threshold,
               'use_es': use_es,
+              'optimizer': optimizer,
               'lr': lr,
               'momentum': momentum,
               'loss_mp': loss_mp}
 
-n_layer = 5  # Number of layers (Normal: 5, LH: 1) 
+n_layer = 0  # Number of layers (Normal: 5, LH: 1) 
 hidden_dim = 120 # Hidden layer dimension
 input_dim = X.shape[1]
 X = X.to(torch.float32)
 use_gpu = True
-mode = 0
+mode = 1
 
 ##### Wandb Config #####
 
@@ -62,6 +64,7 @@ config = {**feature_dict,
           'hidden_dim': hidden_dim,
           'input_dim': input_dim,
           'activation_func': activation_func,
+          'optimizer': optimizer,
           'use_es': use_es,
           'use_gpu': use_gpu,
           'mode': mode

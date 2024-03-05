@@ -303,18 +303,18 @@ def train_model_loop(model,
       ############## Compute Metrics ################
       train_outputs = model(X_train)
       train_loss = train_dict['loss_mp'] * criterion(train_outputs, (y_train + 1)/2)
-      train_predictions = torch.round(train_outputs)  # Convert probabilities to 0/1 predictions
-      train_error = torch.mean((train_predictions != (y_train + 1)/2).float())
+      train_predictions = torch.sign(train_outputs)  # Convert probabilities to 0/1 predictions
+      train_error = torch.mean((train_predictions != y_train).float())
 
       test_outputs = model(X_test)
       test_loss = train_dict['loss_mp'] * criterion(test_outputs, (y_test + 1)/2)
-      test_predictions = torch.round(test_outputs)  # Convert probabilities to 0/1 predictions
-      test_error = torch.mean((test_predictions != (y_test + 1)/2).float())
+      test_predictions = torch.sign(test_outputs)  # Convert probabilities to 0/1 predictions
+      test_error = torch.mean((test_predictions != y_test).float().float())
 
       val_outputs = model(X_val)
       val_loss = train_dict['loss_mp'] * criterion(val_outputs, (y_val + 1)/2)
-      val_predictions = torch.round(val_outputs)  # Convert probabilities to 0/1 predictions
-      val_error = torch.mean((val_predictions != (y_val + 1)/2).float())
+      val_predictions = torch.sign(val_outputs)  # Convert probabilities to 0/1 predictions
+      val_error = torch.mean((val_predictions != y_val).float().float())
 
       ################## Append Metrics ###############
 
@@ -374,9 +374,18 @@ def train_model(model, epochs, use_early_stopping, use_gpu, train_dict, inputs, 
 
   # Loss function and optimizer
   criterion = nn.BCELoss()
-  optimizer = optim.SGD(model.parameters(),
+  if train_dict['optimizer'] == 'sgd':
+     optimizer = optim.SGD(model.parameters(),
                         lr=train_dict['lr'],
                         momentum=train_dict['momentum'])
+
+  elif train_dict['optimizer'] == 'adam':
+     optimizer = optim.Adam(model.parameters(),
+                        lr=train_dict['lr'])
+
+  # Move inputs and targets to device
+  inputs = inputs.to(device)
+  targets = targets.to(device)
 
   # Split data into train, test, and validation sets
   train_size, test_size, val_size = split_data(inputs)

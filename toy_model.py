@@ -46,14 +46,14 @@ class BinaryClassifier(nn.Module):
 
         # Add the output layer
         layers.append(nn.Linear(hidden_layer_width, 1))
-        layers.append(nn.Sigmoid())  # Assuming binary classification
+        # layers.append(nn.Sigmoid())  # Assuming binary classification
 
         # Combine all layers into a Sequential model
         self.model = nn.Sequential(*layers)
 
     def forward(self, x):
         return self.model(x)
-    
+
 class NTK(torch.nn.Module):
     def __init__(self, net):
         super().__init__()
@@ -71,13 +71,13 @@ class NTK(torch.nn.Module):
         jac = vmap(jacrev(self.fnet), (None, 0))(self.params, x.to(device))
         # shape: n x out_dim x num_all_params
         jac = torch.cat([j.flatten(2) for j in jac], 2)
-        
+
         return jac.detach()
 
     def forward(self, jac):
         flat_params = torch.cat([p.flatten() for p in self.net.parameters()])
-        return torch.sigmoid(jac @ flat_params)
-    
+        return jac @ flat_params
+
     def to(self, device):
       self.net.to(device)  # Move the base model
       # Re-initialize functional parts that may depend on device-specific tensors
