@@ -274,6 +274,7 @@ def train_model_loop(model,
                      y_val, 
                      epochs, 
                      use_early_stopping):
+  
   # For plotting metrics
   train_losses, test_losses, val_losses = [], [], []
   train_errors, test_errors, val_errors = [], [], []
@@ -373,7 +374,7 @@ def train_model(model, epochs, use_early_stopping, use_gpu, train_dict, inputs, 
     }
 
   # Loss function and optimizer
-  criterion = nn.BCELoss()
+  criterion = nn.BCEWithLogitsLoss()
   if train_dict['optimizer'] == 'sgd':
      optimizer = optim.SGD(model.parameters(),
                         lr=train_dict['lr'],

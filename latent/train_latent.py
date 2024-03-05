@@ -25,7 +25,7 @@ no_improve_threshold = 100
 use_es = True
 loss_mp = 1
 activation_func = 'relu'
-optimizer = 'adam'
+optimizer = 'sgd'
 
 train_dict = {'epochs': epochs,
               'min_loss_change': min_loss_change,
