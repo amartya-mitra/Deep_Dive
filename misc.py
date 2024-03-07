@@ -290,7 +290,6 @@ def train_model_loop(model,
     for epoch in range(epochs):
       # Zero the parameter gradients
       model.train()
-      optimizer.zero_grad()
       running_loss = 0.0
 
       # Forward pass
@@ -298,6 +297,7 @@ def train_model_loop(model,
       loss = train_dict['loss_mp'] * criterion(outputs, (y_train + 1)/2)
 
       # Backward and optimize
+      optimizer.zero_grad()
       loss.backward()
       optimizer.step()
 

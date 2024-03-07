@@ -18,7 +18,7 @@ X, y = get_toy_data(n_samples, feature_dict, seed, add_noise)
 
 # Hyper-parameters
 epochs = 1500
-lr = 0.02 # Normal:0.02, LH: 0.008
+lr = 0.2 # Normal:0.02, LH: 0.008
 momentum = 0.9
 min_loss_change = 0.0001
 no_improve_threshold = 100
@@ -71,6 +71,7 @@ else:
 
 # standard rich training
 if mode == 0:
+    print('Initiating rich training.')
     model = train_model(model, 
                         epochs, 
                         use_es, 
@@ -102,6 +103,8 @@ if mode == 0:
 
 # Lazy training
 elif mode == 1:
+    print('Initiating lazy training.')
+    epochs = 2500
     ntk = NTK(model)
     inputs = ntk.get_jac(X, next(ntk.parameters()).device)
 

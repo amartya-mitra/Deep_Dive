@@ -19,9 +19,9 @@ def get_toy_data(n_samples, feature_dict, seed, add_noise=False):
 
   # Generate a new spurious feature to the existing setup
   flip_prob = torch.rand(n_samples)
-  feature_s = torch.where(flip_prob < feature_dict['p'], y, -y).float()
+  feature_s = feature_dict['sp_multiplier'] * (torch.where(flip_prob < feature_dict['p'], y, -y).float())
   if True:
-    feature_s += feature_dict['spurious_multiplier'] * torch.randn(n_samples)
+    feature_s += feature_dict['sn_multiplier'] * torch.randn(n_samples)
 
 
   # Combine the original feature and the new feature into a single dataset
@@ -46,12 +46,14 @@ def init_config(n_samples):
   # Probability of not flipping
   # 0.5: Zero correlation b/w spurious feature and target
   # 1.0: Perfect correlation b/w spurious feature and target
-  p = 0.98 # Normal: 0.98, LH: 0.5
+  p = 0.98 # Normal: 0.98, LH: 0.5 # Changed here
   # Core feature strength
   # core_multiplier = 0.09 # 0.9 #0.01
-  core_multiplier = 0.09 # 0.9 #0.01 # Changed here
+  core_multiplier = 0.09 # 0.09 #0.01 # Changed here
   # Spurious feature strength
-  spurious_multiplier = 0.1
+  sp_multiplier = 1
+  # Spurious feature noise strength
+  sn_multiplier = 0.1
   # seed
   seed = 2
   # add noise?
@@ -64,10 +66,17 @@ def init_config(n_samples):
   feature_dict = {'mu': mu,
                   'sigma': sigma,
                   'p': p,
-                  'spurious_multiplier': spurious_multiplier,
+                  'sp_multiplier': sp_multiplier,
+                  'sn_multiplier': sn_multiplier,
                   'core_multiplier': core_multiplier,
                   'noise_multiplier': noise_multiplier,
                   'noise_dampener': noise_dampener}
+
+  feature_dict['sigma'] = 0.2
+  feature_dict['p'] = 0.9
+  feature_dict['core_multiplier'] = 0.25
+  feature_dict['sp_multiplier'] = 6
+  feature_dict['sn_multiplier'] = 0.5
 
   return feature_dict, seed, add_noise
 
