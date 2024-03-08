@@ -18,7 +18,7 @@ X, y = get_toy_data(n_samples, feature_dict, seed, add_noise)
 
 # Hyper-parameters
 epochs = 1500
-lr = 0.2 # Normal:0.02, LH: 0.008
+lr = 0.02 # Normal:0.02, LH: 0.008
 momentum = 0.9
 min_loss_change = 0.0001
 no_improve_threshold = 100
@@ -41,7 +41,7 @@ hidden_dim = 120  # Hidden layer dimension
 input_dim = X.shape[1]
 X = X.to(torch.float32)
 use_gpu = True
-mode = 1
+mode = 0
 
 ##### Wandb Config #####
 

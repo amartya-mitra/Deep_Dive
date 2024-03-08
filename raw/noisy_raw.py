@@ -49,12 +49,12 @@ train_dict = {'epochs': epochs,
               'momentum': momentum,
               'loss_mp': loss_mp}
 
-n_layer = 0  # Number of layers (Normal: 5, LH: 1) 
+n_layer = 5  # Number of layers (Normal: 5, LH: 1) 
 hidden_dim = 120 # Hidden layer dimension
 input_dim = X.shape[1]
 X = X.to(torch.float32)
 use_gpu = True
-mode = 1
+mode = 0
 
 ##### Wandb Config #####
 
