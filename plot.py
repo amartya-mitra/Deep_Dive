@@ -1,5 +1,6 @@
 from lib import *
 
+# Plot loss and error curves
 def plot_metrics(train_losses, test_losses, val_losses, train_errors, test_errors, val_errors):
   # Set modern style for plot elements
   plt.style.use("seaborn-v0_8-pastel")  # Or choose a different style you prefer
@@ -31,6 +32,7 @@ def plot_metrics(train_losses, test_losses, val_losses, train_errors, test_error
   plt.tight_layout()  # Adjust spacing between subplots
   plt.show()
 
+# Plot decision boundary
 def toy_plot(model, data, y, feature_dict, activation_func, seed):
   np.random.seed(seed)
   torch.manual_seed(seed)
@@ -60,7 +62,7 @@ def toy_plot(model, data, y, feature_dict, activation_func, seed):
 
   with torch.no_grad():
     model.to('cpu')
-    z = model(grid.to(torch.float32)).numpy().reshape(xx.shape)  # Predict scores on the grid
+    z = (torch.sigmoid(model(grid.to(torch.float32)))).numpy().reshape(xx.shape)  # Predict scores on the grid
 
   plt.figure(figsize=(8, 6))
 
@@ -77,6 +79,7 @@ def toy_plot(model, data, y, feature_dict, activation_func, seed):
 
   plt.show()
 
+# Plot layer rank
 def plot_rank(se, le, xlabel, ylabel, title):
   # Set modern style for plot elements
   plt.style.use("seaborn-v0_8-pastel")  # Or choose a different style you prefer
