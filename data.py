@@ -3,6 +3,40 @@
 
 from lib import *
 
+# Hidden manifold model
+def get_HMM_data(config):
+    
+    n = config['n']
+    dl = config['dim_latent']
+    da = config['dim_ambient']
+    p = config['p']
+    noise = config['noise']
+
+    feature_generator = torch.randn((dl, da))
+    latent_patterns = torch.bernoulli(p * torch.ones((n, dl)))
+    teacher_weights = torch.randn((dl, 1))
+
+    # x = f(feature * latent) + noise
+    x = config['nonlin'](
+        torch.matmul(latent_patterns, feature_generator) /
+        torch.sqrt(torch.tensor(dl)))
+    x += noise * torch.randn((n, da))
+
+    # ReLU activation on the target
+    # y = latent * teacher_weights
+    y = torch.mm(latent_patterns, teacher_weights).gt(0).long()
+    y = 2 * y - 1
+
+    data = {'tr': {
+                'x': x[:n//2],
+                'y': y[:n//2].view(-1),
+                'latents': latent_patterns[:n//2]},
+            'va': {
+                'x': x[n//2:],
+                'y': y[n//2:].view(-1),
+                'latents': latent_patterns[n//2:]}}
+    return data
+
 def get_toy_data(n_samples, feature_dict, seed, add_noise=False):
   np.random.seed(seed)
   torch.manual_seed(seed)
