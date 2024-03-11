@@ -9,6 +9,11 @@ Last-layer retraining or, more generally, truncating deeper layers and retrainin
 
 In our work, we show that this depth corresponds to the length of the initial implicit encoder layer, the output of which is a coarse-grained (?) representation of the underlying latent features defining the raw inputs themselves. We then go on to show that the recovery of the latent features at intermediate depths is what allows for the above retraining strategy to work.
 ## <span style="color:OrangeRed">Contributions</span>
+## <span style="color:OrangeRed">Related Work</span>
+- Spurious correlation and over-parameterization: [Sagawa et al.](https://arxiv.org/abs/2005.04345), [Shah et al.](https://proceedings.neurips.cc/paper/2020/hash/6cfe0e6127fa25df2a0ef2ae1067d915-Abstract.html), 
+- Metrics: [Novak et al.](http://arxiv.org/abs/1802.08760), [Cortes et al.](https://dblp.org/rec/journals/jmlr/CortesMR12)
+- NTK and depth: [Yang and Salman](http://arxiv.org/abs/1907.10599), [Dandi and Jacot](http://arxiv.org/abs/2111.03972)
+- Final layers retraining: [Lee et al.](http://arxiv.org/abs/2210.11466), [Evci et al.](http://arxiv.org/abs/2201.03529), [Kirichenko et al.](https://arxiv.org/abs/2204.02937)
 ## <span style="color:OrangeRed">Setup</span>
 ## <span style="color:OrangeRed">Theoretical Analysis</span>
 ## <span style="color:OrangeRed">Experimental Results</span>
