@@ -7,6 +7,24 @@ To the best of our knowledge, while the individual aspects of increasing model e
 
 In this work, we also attempt to bridge that gap further and additionally connect our results to a related observation, *last-layer retraining* ([Kirichenko et al.](https://arxiv.org/abs/2204.02937)). Last-layer retraining or, more generally, truncating deeper layers and retraining with linear headers ([Lee et al.](http://arxiv.org/abs/2210.11466), [Evci et al.](http://arxiv.org/abs/2201.03529)) have been suggested as a robustness measure against learning spurious correlations in the data. While all these works have attributed the vulnerability of the later layers to the phenomenon of simplicity bias, and hence the need for their retraining, they do not provide a systematic framework to determine the truncation depth nor why this is possible in the first place. In our work, we show that this depth corresponds to the length of the initial implicit encoder layer, the output of which is a coarse-grained (?) representation of the underlying latent features defining the raw inputs themselves. We then go on to show that the recovery of the latent features at intermediate depths is what allows for the above retraining strategy to work.
 ## <span style="color:OrangeRed">Contributions</span>
+<span style="color:Yellow">Latent Recovery</span>
+- In this work, we show that latent features underlying the input data to an NN are recovered at some intermediate depth.
+	- Train a fully connected over-parameterized NN on MNIST. 
+		- Achieve zero training error. 
+		- At the end of the training, perform a CKA evaluation of the inter-layer rank and determine the set of extractor layers, i.e., the initial set of layers that have high CKA with each other.
+		- Extract the output representation of this extractor layer for the input dataset. Keep aside.
+	- Train an auto-encoder on the MNIST dataset. Determine an optimal bottleneck dimension.
+		- Achieve ~zero recovery loss.
+		- Extract the bottleneck layer representation for the input dataset.
+	- Compute the CKA between the two extracted representations. Ideally, it should be close to 1
+	- Repeat for Fashion-MNIST
+	- Why not CIFAR? Answer: I am unsure how to implement the above effectively for ResNets.
+<span style="color:Yellow">NTK and Latent Recovery</span>
+- Take the Mode 3 setup on toy data., i.e., NTK with no training.
+- The NTK ranks for varying depths have already been evaluated. 
+- We now aim to study the NTK's *k*-top eigenvectors instead.
+- Is there an efficient way to do that? I recall [Baratin et al.](https://proceedings.mlr.press/v130/baratin21a.html) tried something on NTK top eigenvector alignment to the task.
+- Our objective is to test if, *post the optimal depth* (i.e., beyond which the NTKs rank starts to decrease monotonically), the top-eigenvectors of the NTK for, say, *optimal depth + 1* and *optimal depth + 2* ... *optimal depth + n* are the same. It is just that the associated eigenvalues/singular values concentrate toward the top eigenvector itself (gradient starvation). This causes the soft rank reduction.
 ## <span style="color:OrangeRed">Related Work</span>
 - Simplicity bias: [Rahaman et al.](http://arxiv.org/abs/1806.08734), [Valle-Perez et al.](https://arxiv.org/abs/1805.08522), [Huh et al.](http://arxiv.org/abs/2103.10427)
 - Spurious correlation and over-parameterization: [Sagawa et al.](https://arxiv.org/abs/2005.04345), [Shah et al.](https://proceedings.neurips.cc/paper/2020/hash/6cfe0e6127fa25df2a0ef2ae1067d915-Abstract.html), 
