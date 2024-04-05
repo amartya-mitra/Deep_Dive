@@ -35,7 +35,21 @@ In this work, we also attempt to bridge that gap further and additionally connec
 ## <span style="color:OrangeRed">Setup</span>
 ## <span style="color:OrangeRed">Theoretical Analysis</span>
 ## <span style="color:OrangeRed">Experimental Results</span>
-
+The dataset is chosen to be `yinyang`. The dataset has an associated binary label.
+![[yingyang.png]]
+Eight networks were trained till convergence on this dataset, with their hidden layers ranging from 1 to 8. At the *end of the training*, we calculate the following:
+1. The individual layer ranks of each of the trained models.
+2. The CKA similarity amongst the trained layers of each of the models.
+3. The NTKs of each of the trained models.
+4. The so-called layer-wise NTKs of each of the trained models.
+1, 2 from above result in: 
+![[rank_cka.jpg]]
+On the other hand, the *top-k* eigenvectors of each of the full NTKs result in:
+![[download_0.png]]
+On plotting the ranks of the full NTK for each model give us:
+![[ntk_rank.png]]
+Lastly, the layer-wise NTKs of these models, yields:
+![[layerw_ntk_rank.png]]
 ## <span style="color:OrangeRed">Discussion</span>
 ## <span style="color:OrangeRed">Conclusion</span>
 In this article, we have explored the intriguing interplay between increasing model depth and the emergence of a simplicity bias in deep over-parameterized neural networks, a topic that has sparked considerable debate and investigation in recent research. Our analysis builds upon and unifies the previously isolated findings of Valle-Perez et al., Huh et al., Masarczyk et al., Shah et al., and Tiwari & Shenoy, offering a comprehensive framework that not only encapsulates the phenomena of model expressivity and simplicity bias but also delves into the practical implications of last-layer retraining as a robustness strategy. By identifying the truncation depth with the span of the initial implicit encoder layer, our work sheds light on the underlying mechanics that enable the preservation and recovery of latent features, thus facilitating effective retraining strategies. This insight not only advances our understanding of the structural dynamics within neural networks but also proposes a methodical approach to enhancing model robustness against spurious correlations. As the field continues to evolve, we anticipate that our findings will serve as a foundation for future research aimed at optimizing neural network design for both performance and reliability, particularly in out-of-distribution contexts.
