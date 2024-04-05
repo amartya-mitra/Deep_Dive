@@ -35,8 +35,7 @@ In this work, we also attempt to bridge that gap further and additionally connec
 ## <span style="color:OrangeRed">Setup</span>
 ## <span style="color:OrangeRed">Theoretical Analysis</span>
 ## <span style="color:OrangeRed">Experimental Results</span>
-The dataset is chosen to be `yinyang`. The dataset has an associated binary label.
-![yingyang](./figs/yingyang.png)
+The dataset is chosen to be `yinyang`. The dataset has an associated binary label. ![yingyang](./figs/yingyang.png)
 
 Eight networks were trained till convergence on this dataset, with their hidden layers ranging from 1 to 8. At the *end of the training*, we calculate the following:
 1. The individual layer ranks of each of the trained models.
