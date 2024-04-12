@@ -33,6 +33,25 @@ In this work, we also attempt to bridge that gap further and additionally connec
 - NTK and depth: [Yang and Salman](http://arxiv.org/abs/1907.10599), [Dandi and Jacot](http://arxiv.org/abs/2111.03972), [Canatar and Pehlevan](https://ieeexplore.ieee.org/abstract/document/9929375)
 - Final layers retraining: [Lee et al.](http://arxiv.org/abs/2210.11466), [Evci et al.](http://arxiv.org/abs/2201.03529), [Kirichenko et al.](https://arxiv.org/abs/2204.02937)
 ## <span style="color:OrangeRed">Setup</span>
+We want to:
+    1) extract and,
+    2) study the hidden layer representations of a trained feed-forward neural network, 
+    3) and upon establishing a suitable metric,
+    4) compare them with the latent representation of the data itself.
+
+Pt. 1: The extraction part of 1) above is straightforward, as it can be done using the intermediate layer outputs for the trained model.
+
+  
+
+Pt 2. & 3: Next up is how or what it means to study them. 
+- Here, we are trying to quantify the aspect that the initial layers act as an _extractor_, while the latter serve as a _tunnel_.  
+Masarczyk et al. leveraged the representation rank for this. In our experiments, we have noted that rank measures need to be more consistent, as originally proposed, to establish this distinction. We tried using the inter-layer CKA metric, which we found to be significantly more informative and consistent. We can see what other metrics exist to compare representations. Additionally, understanding the scope of such potential approaches to be used in a theoretical analysis would be helpful.
+- Approach 1: We suggest a newer metric to quantify the tunnel and extractor formation and empirically demonstrate its relevance and improvement over a naive rank evaluation.
+	- Challenge: Novelty. Given that Masarczyk et al. already had some CKA-type analysis in their work.
+- Approach 2:  We suggest a newer metric to quantify the tunnel and extractor formation and analytically quantify this distinction in layer behavior, followed by an empirical verification of the claims.
+	- Challenge: Analytics is hard.
+
+  Pt. 4: While we can directly access the latent space for toy models, that is not possible for practical models. In that case, we need to first use some technique to gain access to the latent space, followed by examining its similarity with the layer-wise representations.
 ## <span style="color:OrangeRed">Theoretical Analysis</span>
 ## <span style="color:OrangeRed">Experimental Results</span>
 The dataset is chosen to be `yinyang`. The dataset has an associated binary label. 
