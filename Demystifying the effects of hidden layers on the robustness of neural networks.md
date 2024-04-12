@@ -34,14 +34,12 @@ In this work, we also attempt to bridge that gap further and additionally connec
 - Final layers retraining: [Lee et al.](http://arxiv.org/abs/2210.11466), [Evci et al.](http://arxiv.org/abs/2201.03529), [Kirichenko et al.](https://arxiv.org/abs/2204.02937)
 ## <span style="color:OrangeRed">Setup</span>
 We want to:
-    1) extract and,
-    2) study the hidden layer representations of a trained feed-forward neural network, 
-    3) and upon establishing a suitable metric,
-    4) compare them with the latent representation of the data itself.
+1. extract and,
+2. study the hidden layer representations of a trained feed-forward neural network, 
+3. and upon establishing a suitable metric,
+4. compare them with the latent representation of the data itself.
 
 Pt. 1: The extraction part of 1) above is straightforward, as it can be done using the intermediate layer outputs for the trained model.
-
-  
 
 Pt 2. & 3: Next up is how or what it means to study them. 
 - Here, we are trying to quantify the aspect that the initial layers act as an _extractor_, while the latter serve as a _tunnel_.  
