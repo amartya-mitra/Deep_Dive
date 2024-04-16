@@ -41,6 +41,18 @@ Specifically, we aim to show that the observation of the last layer retraining i
 
 Our objective then reduces to understanding how a linearly separable feature representation is generated in the first place (in an NN), followed by how the subsequent layers perform the GS effect. 
 <span style="color:Yellow">Note:</span> Bear in mind that the GS work of [Pezeshki et al.](https://arxiv.org/abs/2011.09468) deals with an NTK formulation of the whole NN, not just its final set of layers.
+> Accomplishments till now:  
+> - Part 1:
+> 	- Set up a data distribution with one core, one spurious, and one noise feature with $\pm1$ labels.
+> 	- Trained NNs of different depths on it. 
+> 	- Computed ranks of various entities, CKA similarity score, etc., from these trained models.
+> - Part 2:
+> 	- Repeated the above experiment for datasets from [Baratin et al.](https://proceedings.mlr.press/v130/baratin21a.html) 
+> 	- Additionally, the behavior of the NTK of the trained models of various depths - specifically, the right eigenvectors matrices of the NTRF, was investigated.
+> 	- Observed better task alignment (as visible by plotting eigenvectors from the $V$ matrices) with increasing model depth
+> 	- Observed that the rank of the NTK for models of various depths exhibited a peak at a specific depth (could be interesting)
+> - Part 3:
+> 	- Computed the latents for MNIST and CIFAR-10 datasets via an SSL (DINO) method and evaluated its CKA similarity with the hidden layer representations of models trained on these datasets. Did not observe a direct correspondence between the 
 ## <span style="color:OrangeRed">Theoretical Analysis</span>
 ## <span style="color:OrangeRed">Experimental Results</span>
 The dataset is chosen to be `yinyang`. The dataset has an associated binary label. 
