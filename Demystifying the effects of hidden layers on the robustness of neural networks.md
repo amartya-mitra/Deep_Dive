@@ -42,8 +42,11 @@ Specifically, we aim to show that the observation of the last layer retraining i
 Our objective then reduces to understanding how a linearly separable feature representation is generated in the first place (in an NN), followed by how the subsequent layers perform the GS effect. 
 
 <span style="color:Yellow">Note:</span> Bear in mind that the GS work of [Pezeshki et al.](https://arxiv.org/abs/2011.09468) deals with an NTK formulation of the whole NN, not just its final set of layers.
+
 ![draft_fig_1](./figs/draft_fig_1.jpg)
+
 ![draft_fig_2](./figs/draft_fig_2.jpg)
+
 > Accomplishments till now:  
 > - Part 1:
 > 	- Set up a data distribution with one core, one spurious, and one noise feature with $\pm1$ labels.
