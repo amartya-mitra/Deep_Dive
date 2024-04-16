@@ -6,7 +6,7 @@ Deeper layers of neural networks are known to capture more complex representatio
 To the best of our knowledge, while the individual aspects of increasing model expressivity with depth and simplicity bias in deep over-parameterized models have received significant standalone attention from the community, limited work ([Dandi and Jacot](http://arxiv.org/abs/2111.03972)) has been performed in unifying both under a single framework. 
 
 In this work, we also attempt to bridge that gap further and additionally connect our results to a related observation, *last-layer retraining* ([Kirichenko et al.](https://arxiv.org/abs/2204.02937)). Last-layer retraining or, more generally, truncating deeper layers and retraining with linear headers ([Lee et al.](http://arxiv.org/abs/2210.11466), [Evci et al.](http://arxiv.org/abs/2201.03529)) have been suggested as a robustness measure against learning spurious correlations in the data. While all these works have attributed the vulnerability of the later layers to the phenomenon of simplicity bias, and hence the need for their retraining, they do not provide a systematic framework to determine the truncation depth nor why this is possible in the first place. In our work, we show that this depth corresponds to the length of the initial implicit encoder layer, the output of which is a coarse-grained (?) representation of the underlying latent features defining the raw inputs themselves. We then go on to show that the recovery of the latent features at intermediate depths is what allows for the above retraining strategy to work.
-## <span style="color:OrangeRed">Contributions</span>
+## <span style="color:OrangeRed">Contributions</span> [Old]
 <span style="color:Yellow">Latent Recovery</span>
 - In this work, we show that latent features underlying the input data to an NN are recovered at some intermediate depth.
 	- Train a fully connected over-parameterized NN on MNIST. 
@@ -41,7 +41,7 @@ Specifically, we aim to show that the observation of the last layer retraining i
 
 Our objective then reduces to understanding how a linearly separable feature representation is generated in the first place (in an NN), followed by how the subsequent layers perform the GS effect. 
 
-<span style="color:Yellow">Note:</span> Bear in mind that the GS work of [Pezeshki et al.](https://arxiv.org/abs/2011.09468) deals with an NTK formulation of the whole NN, not just its final set of layers.
+<span style="color:Pink">Note:</span> Bear in mind that the GS work of [Pezeshki et al.](https://arxiv.org/abs/2011.09468) deals with an NTK formulation of the whole NN, not just its final set of layers.
 
 ![draft_fig_1](./figs/draft_fig_1.jpg)
 
@@ -60,7 +60,12 @@ Our objective then reduces to understanding how a linearly separable feature rep
 > - Part 3:
 > 	- Computed the latents for MNIST and CIFAR-10 datasets via an SSL (DINO) method and evaluated its CKA similarity with the hidden layer representations of models trained on these datasets. 
 > 	- Did not observe a direct correlation between the peak of the layer ranks and the peak in the CKA similarity between the computed latents and the layer representations.
-> 	- 
+
+<span style="color:Pink">What next?:</span>
+- Latents:
+	- It is clear that to investigate the possibility of latent recovery via the extractor layers; we will have to consider non-linear transformations from the latent and the raw inputs space, to begin with. This is a challenge from an analytical standpoint.
+	- To make progress, we make the following design choice for the data generation part:
+	- ![draft_fig_3](./figs/draft_fig_3.jpg)
 ## <span style="color:OrangeRed">Theoretical Analysis</span>
 ## <span style="color:OrangeRed">Experimental Results</span>
 The dataset is chosen to be `yinyang`. The dataset has an associated binary label. 
