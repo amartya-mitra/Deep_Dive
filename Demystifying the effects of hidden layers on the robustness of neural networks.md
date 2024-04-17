@@ -43,15 +43,15 @@ In essence, we aim to show that the observation of the last layer retraining in 
 Our objective then reduces to understanding how a linearly separable feature representation is generated in the first place (in an NN), followed by how the subsequent layers perform the GS effect.
 
 > <span style="color:Pink">Problem Statement:</span> 
-> a) Show that the $U$ eigenvector structure of [Pezeshki et al.](https://arxiv.org/abs/2011.09468) arises post a critical depth of the underlying neural network pinning the NTK
-> b) Show that post the critical model depth, the U structure remains fairly constant while the strength matrix $S$ gets further imbalanced along the stronger 'feature'
+> - Show that the $U$ eigenvector structure of [Pezeshki et al.](https://arxiv.org/abs/2011.09468) arises post a critical depth of the underlying neural network pinning the NTK
+> - Show that post the critical model depth, the U structure remains fairly constant while the strength matrix $S$ gets further imbalanced along the stronger 'feature'
 
 ![draft_fig_1](./figs/draft_fig_1.jpg)
 
 ![draft_fig_2](./figs/draft_fig_2.jpg)
 
-> Accomplishments till now:  
-> - Part 1:
+<span style="color:Pink">Accomplishments till now and what next?:</span>
+ >- Part 1:
 > 	- Set up a data distribution with one core, one spurious, and one noise feature with $\pm1$ labels.
 > 	- Trained NNs of different depths on it. 
 > 	- Computed ranks of various entities, CKA similarity score, etc., from these trained models.
@@ -63,8 +63,6 @@ Our objective then reduces to understanding how a linearly separable feature rep
 > - Part 3:
 > 	- Computed the latents for MNIST and CIFAR-10 datasets via an SSL (DINO) method and evaluated its CKA similarity with the hidden layer representations of models trained on these datasets. 
 > 	- Did not observe a direct correlation between the peak of the layer ranks and the peak in the CKA similarity between the computed latents and the layer representations.
-
-<span style="color:Pink">What next?:</span>
 - Latents:
 	- It is clear that to investigate the possibility of latent recovery via the extractor layers; we will have to consider non-linear transformations from the latent and the raw inputs space, to begin with. This is a challenge from an analytical standpoint.
 	- To make progress, we make the following design choice for the data generation part:![draft_fig_3](./figs/draft_fig_3.jpg)
