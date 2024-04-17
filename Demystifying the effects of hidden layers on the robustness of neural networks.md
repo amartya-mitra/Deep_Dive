@@ -65,8 +65,9 @@ Our objective then reduces to understanding how a linearly separable feature rep
 > 	- Did not observe a direct correlation between the peak of the layer ranks and the peak in the CKA similarity between the computed latents and the layer representations.
 - Latents:
 	- It is clear that to investigate the possibility of latent recovery via the extractor layers; we will have to consider non-linear transformations from the latent and the raw inputs space, to begin with. This is a challenge from an analytical standpoint.
-	- To make progress, we make the following design choice for the data generation part:![draft_fig_3](./figs/draft_fig_3.jpg)
+	- To make progress, we take inspiration from [Gerace et al.](https://proceedings.mlr.press/v119/gerace20a/gerace20a.pdf) make the following design choice for the data generation part:![draft_fig_3](./figs/draft_fig_3.jpg)
 ## <span style="color:OrangeRed">Theoretical Analysis</span>
+Data generation: ${\bf{x}} = \sigma(\frac{1}{\sqrt{d}}{\bf{c}\cdot F}) \in R^{n\times d}$, with $\mathbf{c}\in R^{n\times p}$ being the latents, and $\sigma$ referring to an activation function. Similarly, the targets are generated as $Y = g(\frac{1}{\sqrt{d}}c\cdot\theta)$
 ## <span style="color:OrangeRed">Experimental Results</span>
 The dataset is chosen to be `yinyang`. The dataset has an associated binary label. 
 
