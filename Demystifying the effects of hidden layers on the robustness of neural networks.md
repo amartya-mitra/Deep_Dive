@@ -48,7 +48,7 @@ Our objective then reduces to understanding how a linearly separable feature rep
 
 ![draft_fig_1](./figs/draft_fig_1.jpg)
 
-![draft_fig_2](./figs/draft_fig_22.jpg)
+![draft_fig_2](./figs/draft_fig_2.jpg)
 
 > Accomplishments till now:  
 > - Part 1:
