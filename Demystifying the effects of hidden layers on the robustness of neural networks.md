@@ -32,16 +32,19 @@ In this work, we also attempt to bridge that gap further and additionally connec
 - Linear probing: [Alain and Bengio](https://arxiv.org/abs/1610.01644)
 - NTK and depth: [Yang and Salman](http://arxiv.org/abs/1907.10599), [Dandi and Jacot](http://arxiv.org/abs/2111.03972), [Canatar and Pehlevan](https://ieeexplore.ieee.org/abstract/document/9929375)
 - Final layers retraining: [Lee et al.](http://arxiv.org/abs/2210.11466), [Evci et al.](http://arxiv.org/abs/2201.03529), [Kirichenko et al.](https://arxiv.org/abs/2204.02937)
-## <span style="color:OrangeRed">Setup</span>
+## <span style="color:OrangeRed">Objective and Setup</span>
 Our goal is to connect the following results presented in three articles:
 - Retraining the last layer(s) of a NN improves OOD performance. [Kirichenko et al.](https://arxiv.org/abs/2204.02937)
 - The layers of a trained feedforward NN can be decomposed into extractor and tunnel layers or modules. The extractor extracts linearly separable features while the tunnel compresses the extracted representations along certain principal directions. Based on related works on representation compression effects in NNs, the tunnel can be attributed to inducing poor OOD performance. [Masarczyk et al.](http://arxiv.org/abs/2305.19753)
-- Stronger *features* starve the learning of weaker ones, i.e., weights associated with the latter are ~ 0 [Pezeshki et al.](https://arxiv.org/abs/2011.09468)
-Specifically, we aim to show that the observation of the last layer retraining in improving OOD performance is a special case of removing the tunnel layer(s) as a whole with a linear header followed by training it. On the other hand, the reason the tunnel layers act the way they do can be understood to be gradient starvation effects.
+- Stronger *features* starve the learning of weaker ones, i.e., weights associated with the latter are ~ 0 [Pezeshki et al.](https://arxiv.org/abs/2011.09468). <span style="color:Pink">Note:</span> Bear in mind that the GS work of [Pezeshki et al.](https://arxiv.org/abs/2011.09468) deals with an NTK formulation of the whole NN, not just its final set of layers.
 
-Our objective then reduces to understanding how a linearly separable feature representation is generated in the first place (in an NN), followed by how the subsequent layers perform the GS effect. 
+In essence, we aim to show that the observation of the last layer retraining in improving OOD performance is a special case of removing the tunnel layer(s) as a whole with a linear header followed by training it. On the other hand, the reason the tunnel layers act the way they do can be understood to be gradient starvation effects.
 
-<span style="color:Pink">Note:</span> Bear in mind that the GS work of [Pezeshki et al.](https://arxiv.org/abs/2011.09468) deals with an NTK formulation of the whole NN, not just its final set of layers.
+Our objective then reduces to understanding how a linearly separable feature representation is generated in the first place (in an NN), followed by how the subsequent layers perform the GS effect.
+
+> <span style="color:Pink">Problem Statement:</span> 
+> a) Show that the $U$ eigenvector structure of [Pezeshki et al.](https://arxiv.org/abs/2011.09468) arises post a critical depth of the underlying neural network pinning the NTK
+> b) Show that post the critical model depth, the U structure remains fairly constant while the strength matrix $S$ gets further imbalanced along the stronger 'feature'
 
 ![draft_fig_1](./figs/draft_fig_1.jpg)
 
@@ -64,8 +67,7 @@ Our objective then reduces to understanding how a linearly separable feature rep
 <span style="color:Pink">What next?:</span>
 - Latents:
 	- It is clear that to investigate the possibility of latent recovery via the extractor layers; we will have to consider non-linear transformations from the latent and the raw inputs space, to begin with. This is a challenge from an analytical standpoint.
-	- To make progress, we make the following design choice for the data generation part:
-	- ![draft_fig_3](./figs/draft_fig_3.jpg)
+	- To make progress, we make the following design choice for the data generation part:![draft_fig_3](./figs/draft_fig_3.jpg)
 ## <span style="color:OrangeRed">Theoretical Analysis</span>
 ## <span style="color:OrangeRed">Experimental Results</span>
 The dataset is chosen to be `yinyang`. The dataset has an associated binary label. 
