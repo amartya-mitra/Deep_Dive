@@ -71,9 +71,10 @@ Data generation: ${\bf{x}} = \sigma(\frac{1}{\sqrt{d}}{\bf{c}\cdot F}) \in R^{n\
 Similarly, the targets are generated as $Y = g(\frac{1}{\sqrt{d}}c\cdot\theta)$. 
 
 Our goal is two-fold:
-1) We demonstrate, in corroboration of the results of [Yang and Salman](http://arxiv.org/abs/1907.10599), that the rank of the NTK of increasing model depths possesses a peak at some critical depth. 
+1) We demonstrate, in corroboration of the results of [Yang and Salman](http://arxiv.org/abs/1907.10599), that the rank of the NTK of increasing model depths possesses a peak at some critical depth. $\to$ <span style="color:Pink">this sets up the point where the extractor forms</span>
 	1) This depth depends on some complexity measure of the data distribution.
-	2) Furthermore, at this critical depth, the left eigenfunctions of the NTRF matrix $\Phi(x)\in\mathcal{R}^{p\times n}$ of this respective model ($p$: number of parameters, $n$: number of examples) exhibits significant alignment with the latent distribution covariance matrix
+	2) The top-$k$ spectral values show increasing concentration towards the top $k'$ < $k$ spectral concentration with depth beyond this critical depth
+2) Furthermore, at this critical depth, the left eigenfunctions of the NTRF matrix $\Phi(x)\in\mathcal{R}^{p\times n}$ of this respective model ($p$: number of parameters, $n$: number of examples) exhibits significant alignment with the latent distribution covariance matrix $\to$ <span style="color:Pink">this is the latent recovery part</span>
 ## <span style="color:OrangeRed">Experimental Results</span>
 The dataset is chosen to be `yinyang`. The dataset has an associated binary label. 
 
