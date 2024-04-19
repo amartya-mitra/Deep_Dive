@@ -67,7 +67,13 @@ Our objective then reduces to understanding how a linearly separable feature rep
 	- It is clear that to investigate the possibility of latent recovery via the extractor layers; we will have to consider non-linear transformations from the latent and the raw inputs space, to begin with. This is a challenge from an analytical standpoint.
 	- To make progress, we take inspiration from [Gerace et al.](https://proceedings.mlr.press/v119/gerace20a/gerace20a.pdf) make the following design choice for the data generation part:![draft_fig_3](./figs/draft_fig_3.jpg)
 ## <span style="color:OrangeRed">Theoretical Analysis</span>
-Data generation: ${\bf{x}} = \sigma(\frac{1}{\sqrt{d}}{\bf{c}\cdot F}) \in R^{n\times d}$, with $\mathbf{c}\in R^{n\times p}$ being the latents, and $\sigma$ referring to an activation function. Similarly, the targets are generated as $Y = g(\frac{1}{\sqrt{d}}c\cdot\theta)$
+Data generation: ${\bf{x}} = \sigma(\frac{1}{\sqrt{d}}{\bf{c}\cdot F}) \in R^{n\times d}$, with $\mathbf{c}\in R^{n\times p}$ being the latents, and $\sigma$ referring to an activation function. 
+Similarly, the targets are generated as $Y = g(\frac{1}{\sqrt{d}}c\cdot\theta)$. 
+
+Our goal is two-fold:
+1) We demonstrate, in corroboration of the results of [Yang and Salman](http://arxiv.org/abs/1907.10599), that the rank of the NTK of increasing model depths possesses a peak at some critical depth. 
+	1) This depth depends on some complexity measure of the data distribution.
+	2) Furthermore, at this critical depth, the left eigenfunctions of the NTRF matrix $\Phi(x)\in\mathcal{R}^{p\times n}$ of this respective model ($p$: number of parameters, $n$: number of examples) exhibits significant alignment with the latent distribution covariance matrix
 ## <span style="color:OrangeRed">Experimental Results</span>
 The dataset is chosen to be `yinyang`. The dataset has an associated binary label. 
 
