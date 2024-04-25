@@ -137,3 +137,59 @@ def input_rotation(angle, input, feature_1, feature_2):
   rotated_X[:, feature_2] = rotated_columns[:, 1]
 
   return rotated_X
+
+def generate_disk_dataset(device, r, n_train=100, test_resolution=100, p=0, half=False):
+    # Set random seed for reproducibility
+    np.random.seed(2021)
+    torch.manual_seed(2021)
+    torch.cuda.manual_seed(2021)
+    torch.backends.cudnn.deterministic = True
+
+    # p: proportion of flipped labels
+    x_train = (torch.rand(n_train, 2) - .5) * 2
+    y_train = (x_train[:, 0]**2 + x_train[:, 1]**2 < r**2) * 2 - 1
+
+    x_test_x, x_test_y = np.mgrid[-1:1:test_resolution*1j, -1:1:test_resolution*1j]
+    x_test = np.vstack((x_test_x.flatten(), x_test_y.flatten())).T
+    x_test = torch.tensor(x_test, dtype=torch.float)
+    y_test = ((x_test[:, 0]**2 + x_test[:, 1]**2 < r**2) * 2 - 1)
+
+    if half:
+        y_train *= 1 - 2 * (x_train[:, 1] > 0)
+        y_test *= 1 - 2 * (x_test[:, 1] > 0)
+
+    flipped_indices = np.random.choice(np.arange(n_train), size=int(p * n_train))
+    y_train[flipped_indices] *= -1
+
+    return (x_train.to(device), y_train.to(device),
+            x_test.to(device), y_test.to(device))
+
+def generate_yinyang_dataset(n_train=100, test_resolution=100, p=0, variant=1):
+    # p: proportion of flipped labels
+
+    if variant == 1:
+        c_1 = (.5, -.5)
+        c_2 = (-.5, .5)
+        r = .3
+    elif variant == 2:
+        c_1 = (-.5, -.5)
+        c_2 = (-.5, .5)
+        r = .3
+
+    x_train = (torch.rand(n_train, 2) - .5) * 2
+    y_train = 1 - 2 * (x_train[:, 1] > 0)
+    y_train *= 1 - 2 * (torch.norm(x_train - torch.tensor(c_1), dim=1) < r)
+    y_train *= 1 - 2 * (torch.norm(x_train - torch.tensor(c_2), dim=1) < r)
+
+    x_test_x, x_test_y = np.mgrid[-1:1:test_resolution*1j, -1:1:test_resolution*1j]
+    x_test = np.vstack((x_test_x.flatten(), x_test_y.flatten())).T
+    x_test = torch.tensor(x_test, dtype=torch.float)
+    y_test = 1 - 2 * (x_test[:, 1] > 0)
+    y_test *= 1 - 2 * (torch.norm(x_test - torch.tensor(c_1), dim=1) < r)
+    y_test *= 1 - 2 * (torch.norm(x_test - torch.tensor(c_2), dim=1) < r)
+
+    flipped_indices = np.random.choice(np.arange(n_train), size=int(p * n_train))
+    y_train[flipped_indices] *= -1
+
+    return (x_train.to(device), y_train.to(device),
+            x_test.to(device), y_test.to(device))

@@ -62,7 +62,13 @@ def toy_plot(model, data, y, feature_dict, activation_func, seed):
 
   with torch.no_grad():
     model.to('cpu')
-    z = (torch.sigmoid(model(grid.to(torch.float32)))).numpy().reshape(xx.shape)  # Predict scores on the grid
+    model.eval()
+    logits = model(grid.to(torch.float32))
+    probabilities = torch.softmax(logits, dim=1)  # Convert logits to probabilities
+    predicted_class = torch.argmax(probabilities, dim=1)  # Get the index of the max probability
+
+    z = predicted_class.numpy().reshape(xx.shape)
+    # z = (torch.sigmoid(model(grid.to(torch.float32)))).numpy().reshape(xx.shape)  # Predict scores on the grid
 
   plt.figure(figsize=(8, 6))
 
@@ -88,13 +94,24 @@ def plot_rank(se, le, xlabel, ylabel, title):
   plt.figure(figsize=(5, 5))
 
   # Plot the curves with different line styles and colors
-  plt.plot(le, se, label=title, linestyle='solid', color='red')
+  plt.plot(le, se, label=title, linestyle='solid', color='red', marker='o')
 
   # Customize axes, title, and background
   plt.xlabel(xlabel, fontweight='light')
   plt.ylabel(ylabel, fontweight='light')
   plt.grid(True)  # Turn on grid
   plt.gca().set_facecolor('lightgray')  # Set plot background color
-
+  plt.locator_params(axis='x', integer=True)
   plt.legend()
   plt.show()
+
+def custom_imshow(axis, ys, center=False):
+    if center:
+        minmax = torch.max(torch.abs(ys)).item()
+        axis.imshow(ys.cpu().reshape(args.test_resolution, args.test_resolution).t(),
+                    interpolation=None, cmap=cmap, extent=(-1, 1, -1, 1), alpha=1,
+                    origin='lower', vmin=-minmax, vmax=minmax)
+    else:
+        axis.imshow(ys.cpu().reshape(args.test_resolution, args.test_resolution).t(),
+                    interpolation=None, cmap=cmap, extent=(-1, 1, -1, 1), alpha=1,
+                    origin='lower')

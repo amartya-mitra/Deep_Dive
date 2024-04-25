@@ -262,6 +262,7 @@ def split_data(inputs):
   val_size = inputs.shape[0] - train_size - test_size
   return train_size, test_size, val_size
 
+# Target should be +1 or -1
 def train_model_loop(model, 
                      optimizer, 
                      criterion, 
@@ -294,7 +295,7 @@ def train_model_loop(model,
 
       # Forward pass
       outputs = model(X_train)
-      loss = train_dict['loss_mp'] * criterion(outputs, (y_train + 1)/2)
+      loss = train_dict['loss_mp'] * criterion(outputs, y_train)
 
       # Backward and optimize
       optimizer.zero_grad()
@@ -303,18 +304,18 @@ def train_model_loop(model,
 
       ############## Compute Metrics ################
       train_outputs = model(X_train)
-      train_loss = train_dict['loss_mp'] * criterion(train_outputs, (y_train + 1)/2)
-      train_predictions = torch.sign(train_outputs)  # Convert probabilities to 0/1 predictions
+      train_loss = train_dict['loss_mp'] * criterion(train_outputs, y_train)
+      _, train_predictions = torch.max(train_outputs.data, 1)  # Convert probabilities to 0/1 predictions
       train_error = torch.mean((train_predictions != y_train).float())
 
       test_outputs = model(X_test)
-      test_loss = train_dict['loss_mp'] * criterion(test_outputs, (y_test + 1)/2)
-      test_predictions = torch.sign(test_outputs)  # Convert probabilities to 0/1 predictions
+      test_loss = train_dict['loss_mp'] * criterion(test_outputs, y_test)
+      _, test_predictions = torch.max(test_outputs.data, 1)  # Convert probabilities to 0/1 predictions
       test_error = torch.mean((test_predictions != y_test).float().float())
 
       val_outputs = model(X_val)
-      val_loss = train_dict['loss_mp'] * criterion(val_outputs, (y_val + 1)/2)
-      val_predictions = torch.sign(val_outputs)  # Convert probabilities to 0/1 predictions
+      val_loss = train_dict['loss_mp'] * criterion(val_outputs, y_val)
+      _, val_predictions = torch.max(val_outputs.data, 1)  # Convert probabilities to 0/1 predictions
       val_error = torch.mean((val_predictions != y_val).float().float())
 
       ################## Append Metrics ###############
@@ -341,10 +342,15 @@ def train_model_loop(model,
         else:
             no_improve_epochs += 1
 
-        # Early stopping check
+        # Early stopping no-improvement check
         if no_improve_epochs >= no_improve_threshold:
-            print(f'Early stopping triggered at epoch {epoch+1} with loss {epoch_loss:.4f}')
-            break
+          print(f'Early stopping (case-1) triggered at epoch {epoch + 1} with loss {epoch_loss:.4f} and error {train_error.item():.4f}')
+          break
+
+        # Early stopping low error check
+        if train_error.item() <= 0.00001:
+          print(f'Early stopping (case-2) triggered at epoch {epoch + 1} with loss {epoch_loss:.4f} and error {train_error.item():.4f}')
+          break
 
       # # Print loss every 10 epochs
       # if (epoch+1) % 100 == 0:
@@ -354,8 +360,9 @@ def train_model_loop(model,
       pbar.update(1)
       pbar.set_postfix_str(f'Loss: {loss.item():.4f}, 0-1 Error: {train_error.item():.4f}')
 
-      # Log metrics to wandb
-      wandb.log({"epoch": epoch, "loss": loss.item(), "accuracy": train_error.item()})
+      if train_dict['wandb']:
+        # Log metrics to wandb
+        wandb.log({"epoch": epoch, "loss": loss.item(), "accuracy": train_error.item()})
 
   return train_losses, test_losses, val_losses, train_errors, test_errors, val_errors
 
@@ -374,7 +381,8 @@ def train_model(model, epochs, use_early_stopping, use_gpu, train_dict, inputs, 
     }
 
   # Loss function and optimizer
-  criterion = nn.BCEWithLogitsLoss()
+  criterion = nn.CrossEntropyLoss()
+
   if train_dict['optimizer'] == 'sgd':
      optimizer = optim.SGD(model.parameters(),
                         lr=train_dict['lr'],
@@ -386,6 +394,7 @@ def train_model(model, epochs, use_early_stopping, use_gpu, train_dict, inputs, 
 
   # Move inputs and targets to device
   inputs = inputs.to(device)
+  targets = targets.type(torch.LongTensor)
   targets = targets.to(device)
 
   # Split data into train, test, and validation sets

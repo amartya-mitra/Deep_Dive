@@ -47,7 +47,8 @@ train_dict = {'epochs': epochs,
               'optimizer': optimizer,
               'lr': lr,
               'momentum': momentum,
-              'loss_mp': loss_mp}
+              'loss_mp': loss_mp,
+              'wandb': False}
 
 n_layer = 5  # Number of layers (Normal: 5, LH: 1) 
 hidden_dim = 120 # Hidden layer dimension
@@ -70,22 +71,26 @@ config = {**feature_dict,
           'mode': mode
           }
 
+if train_dict['wandb']:
+    wandb.init(project='DeepDive', entity='amartya-mitra', config=config)
 
-wandb.init(project='DeepDive', entity='amartya-mitra', config=config)
-
-model = BinaryClassifier(input_dim, n_layer, hidden_dim, activation_func)
+model = Classifier(input_dim, n_layer, hidden_dim, len(torch.unique(y)), activation_func)
 
 # standard rich training
 if mode == 0:
+    print('Initiating rich training.')
     model = train_model(model, 
                         epochs, 
                         use_es, 
                         use_gpu, 
                         train_dict, 
-                        X, y.float().view(-1, 1), 
+                        X, 
+                        ((y + 1)/2),
+                        # y.float().view(-1, 1), 
                         seed)
     # Plot the decision boundary
-    toy_plot(model, X, y, feature_dict, activation_func, seed)
+    if len(torch.unique(y)) <= 2:
+        toy_plot(model, X, y, feature_dict, activation_func, seed)
     
     # Plot the layer ranks
     compute_layer_rank(model, activation_func, 'wgt')
@@ -100,6 +105,7 @@ if mode == 0:
     
 # Lazy training
 elif mode == 1:
+    print('Initiating lazy training.')
     ntk = NTK(model)
     inputs = ntk.get_jac(X, next(ntk.parameters()).device)
 

@@ -54,6 +54,54 @@ class BinaryClassifier(nn.Module):
     def forward(self, x):
         return self.model(x)
 
+class Classifier(nn.Module):
+    def __init__(self, input_dim, num_hidden_layers, hidden_layer_width, output_dim, activation_func):
+        super(Classifier, self).__init__()
+
+        # Create a list to hold the layers
+        layers = []
+
+        # Add the first hidden layer
+        layers.append(nn.Linear(input_dim, hidden_layer_width))
+
+        # Add the chosen activation function
+        if activation_func == 'relu':
+            layers.append(nn.ReLU())
+        elif activation_func == 'tanh':
+            layers.append(nn.Tanh())
+        elif activation_func == 'sigmoid':
+            layers.append(nn.Sigmoid())
+        elif activation_func == 'linear':
+            layers.append(LinearActivation())
+        elif activation_func == 'quadratic':
+            layers.append(QuadraticActivation())
+        else:
+            raise ValueError("Unsupported activation function")
+
+        # Add subsequent hidden layers
+        for _ in range(num_hidden_layers - 1):
+            layers.append(nn.Linear(hidden_layer_width, hidden_layer_width))
+            if activation_func == 'relu':
+                layers.append(nn.ReLU())
+            elif activation_func == 'tanh':
+                layers.append(nn.Tanh())
+            elif activation_func == 'sigmoid':
+                layers.append(nn.Sigmoid())
+            elif activation_func == 'linear':
+                layers.append(LinearActivation())
+            elif activation_func == 'quadratic':
+                layers.append(QuadraticActivation())
+
+        # Add the output layer
+        layers.append(nn.Linear(hidden_layer_width, output_dim))
+        # layers.append(nn.Sigmoid())  # Assuming binary classification
+
+        # Combine all layers into a Sequential model
+        self.model = nn.Sequential(*layers)
+
+    def forward(self, x):
+        return self.model(x)
+
 class NTK(torch.nn.Module):
     def __init__(self, net):
         super().__init__()
