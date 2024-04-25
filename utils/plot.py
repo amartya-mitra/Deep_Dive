@@ -105,13 +105,13 @@ def plot_rank(se, le, xlabel, ylabel, title):
   plt.legend()
   plt.show()
 
-def custom_imshow(axis, ys, center=False):
+def custom_imshow(axis, ys, args, center=False):
     if center:
         minmax = torch.max(torch.abs(ys)).item()
         axis.imshow(ys.cpu().reshape(args.test_resolution, args.test_resolution).t(),
-                    interpolation=None, cmap=cmap, extent=(-1, 1, -1, 1), alpha=1,
+                    interpolation=None, cmap=args.cmap, extent=(-1, 1, -1, 1), alpha=1,
                     origin='lower', vmin=-minmax, vmax=minmax)
     else:
         axis.imshow(ys.cpu().reshape(args.test_resolution, args.test_resolution).t(),
-                    interpolation=None, cmap=cmap, extent=(-1, 1, -1, 1), alpha=1,
+                    interpolation=None, cmap=args.cmap, extent=(-1, 1, -1, 1), alpha=1,
                     origin='lower')

@@ -58,7 +58,6 @@ use_gpu = True
 mode = 0
 
 ##### Wandb Config #####
-
 config = {**feature_dict, 
           **train_dict,
           'n_layer': n_layer,
