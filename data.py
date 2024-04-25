@@ -76,18 +76,22 @@ def get_toy_data(n_samples, feature_dict, seed, add_noise=False):
 
 def init_config(n_samples):
   # Fixed value for mu
-  mu, sigma = 2.0, 0.5
+  mu, sigma = 2.0, 0.2
+
+  # Item #1 to influence the preferential learning spurious feature
   # Probability of not flipping
   # 0.5: Zero correlation b/w spurious feature and target
   # 1.0: Perfect correlation b/w spurious feature and target
-  p = 0.98 # Normal: 0.98, LH: 0.5 # Changed here
+  p = 0.9 # Normal: 0.98, LH: 0.5 # Changed here
+  
+  # Item #2 to influence the preferential learning spurious feature
   # Core feature strength
   # core_multiplier = 0.09 # 0.9 #0.01
-  core_multiplier = 0.09 # 0.09 #0.01 # Changed here
+  core_multiplier = 0.25 #0.25 # 0.09 #0.01 # Changed here
   # Spurious feature strength
-  sp_multiplier = 1
+  sp_multiplier = 6
   # Spurious feature noise strength
-  sn_multiplier = 0.1
+  sn_multiplier = 0.5
   # seed
   seed = 2
   # add noise?
@@ -106,11 +110,11 @@ def init_config(n_samples):
                   'noise_multiplier': noise_multiplier,
                   'noise_dampener': noise_dampener}
 
-  feature_dict['sigma'] = 0.2
-  feature_dict['p'] = 0.9
-  feature_dict['core_multiplier'] = 0.25
-  feature_dict['sp_multiplier'] = 6
-  feature_dict['sn_multiplier'] = 0.5
+  # feature_dict['sigma'] = 0.2
+  # feature_dict['p'] = 0.9
+  # feature_dict['core_multiplier'] = 0.25
+  # feature_dict['sp_multiplier'] = 6
+  # feature_dict['sn_multiplier'] = 0.5
 
   return feature_dict, seed, add_noise
 
