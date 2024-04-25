@@ -89,7 +89,7 @@ if mode == 0:
                         seed)
     # Plot the decision boundary
     if len(torch.unique(y)) <= 2:
-        toy_plot(model, X, y, feature_dict, activation_func, seed)
+        toy_plot(model, X, y, activation_func, seed, feature_dict)
     
     # Plot the layer ranks
     compute_layer_rank(model, activation_func, 'wgt')

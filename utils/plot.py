@@ -33,7 +33,7 @@ def plot_metrics(train_losses, test_losses, val_losses, train_errors, test_error
   plt.show()
 
 # Plot decision boundary
-def toy_plot(model, data, y, feature_dict, activation_func, seed):
+def toy_plot(model, data, y, activation_func, seed, feature_dict=None):
   np.random.seed(seed)
   torch.manual_seed(seed)
   torch.cuda.manual_seed(seed)
@@ -53,7 +53,7 @@ def toy_plot(model, data, y, feature_dict, activation_func, seed):
   xx, yy = np.meshgrid(np.linspace(x_min, x_max, 100), np.linspace(y_min, y_max, 100))
   grid = torch.Tensor(np.c_[xx.ravel(), yy.ravel()])
 
-  if data.shape[1] > 2:
+  if (feature_dict is not None) and (data.shape[1] > 2):
     # Add noise to the grid
     noise = np.random.randn(grid.shape[0], data.shape[1] - 2)
     # noise = noise / np.linalg.norm(noise, 2, 1, keepdims=True)
@@ -70,7 +70,7 @@ def toy_plot(model, data, y, feature_dict, activation_func, seed):
     z = predicted_class.numpy().reshape(xx.shape)
     # z = (torch.sigmoid(model(grid.to(torch.float32)))).numpy().reshape(xx.shape)  # Predict scores on the grid
 
-  plt.figure(figsize=(8, 6))
+  plt.figure(figsize=(6, 6))
 
   # Plot the decision boundary with a color gradient
   plt.contourf(xx, yy, z, cmap='coolwarm', alpha=0.5)  # Adjust alpha for transparency

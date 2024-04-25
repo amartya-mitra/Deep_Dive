@@ -91,3 +91,25 @@ input_dim = x_train.shape[1]
 features = x_train.to(torch.float32)
 use_gpu = True if torch.cuda.is_available() else False
 mode = 0
+
+model = Classifier(input_dim, n_layer, hidden_dim, len(torch.unique(y_train)), activation_func)
+
+if sum(p.numel() for p in model.parameters()) > len(x_train):
+    print('Model of {} hidden layers is overparameterized'.format(n_layer))
+else:
+    print('Model of {} hidden layers is underparameterized'.format(n_layer))
+
+model = train_model(model,
+                    epochs,
+                    use_es,
+                    use_gpu,
+                    train_dict,
+                    features,
+                    ((y_train + 1)/2),
+                    # y.float().view(-1, 1),
+                    seed)
+
+###### Temp plot ######
+if len(torch.unique(y_train)) <= 2:
+    toy_plot(model, x_train, y_train, activation_func, seed)
+
