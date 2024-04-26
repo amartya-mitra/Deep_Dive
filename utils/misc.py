@@ -76,6 +76,13 @@ def quadratic_activation(tensor):
 def count_parameters(model):
   return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
+def count_hidden_layers(model):
+    hidden_layers = 0
+    for name, module in model.named_modules():
+      if isinstance(module, torch.nn.Linear):
+        hidden_layers += 1
+    return hidden_layers - 1  # Subtract 1 to exclude the output layer
+
 def get_all_layer_outputs(model, input_data):
     # Dictionary to store layer outputs
     layer_outputs = {}
@@ -185,14 +192,17 @@ class CudaCKA(object):
         return hsic / (var1 * var2)
 
 def layerwise_CKA(model, input, latents, use_gpu):
+    num_layers = count_hidden_layers(model)
+
     plt.style.use("seaborn-v0_8-pastel")  # Or choose a different style you prefer
     plt.figure(figsize=(5, 5))
-    
+
     layer_CKA = []
     le = []
     counter = 0
     # Assuming 'model' is your trained model and 'input_data' is your dataset
     layer_outputs = get_all_layer_outputs(model, input)
+
     device = torch.device('cuda' if use_gpu else torch.device('cpu'))
 
     if use_gpu == False:
@@ -202,32 +212,34 @@ def layerwise_CKA(model, input, latents, use_gpu):
 
     # Create 2D Torch Tensor of dimension len(layer_outputs)
     cka_corr = torch.zeros(len(layer_outputs), len(layer_outputs))
-
     ###########################################################################
 #   Compute the individual CKA values of each layer w.r.t. the latent
     for layer_name, layer_output in layer_outputs.items():
+
+        ''' # Include the input layer in the CKA calculation
         # Perform CKA
         if counter == 0:
             # print(f'Linear CKA at layer {counter}:', cka.linear_CKA(input.to(device), latents.to(device)).item())
             # print(f'RBF Kernel CKA at layer {counter}:', cka.kernel_CKA(input.to(device), latents.to(device)).item())
             layer_CKA.append(cka.kernel_CKA(input.to(device), latents.to(device)).item())
             counter += 1
-        
+        '''
     #     # print(f'Linear CKA at layer {counter}:', cka.linear_CKA(layer_output.to(device), latents.to(device)).item())
     #     # print(f'RBF Kernel CKA at layer {counter}:', cka.kernel_CKA(layer_output.to(device), latents.to(device)).item())
-        layer_CKA.append(cka.kernel_CKA(layer_output.to(device), latents.to(device)).item())
+        layer_CKA.append(cka.kernel_CKA(layer_output.detach().to(device), latents.to(device)).item())
         counter += 1
-    
+
     ys = layer_CKA
     xs = [x for x in range(len(ys))]
 
-    plt.plot(xs, ys, label="Latent-layer Representation Similarity", linestyle='solid', color='red')
+    plt.plot(xs, ys, label=f"Latent-layer Rep. Sim.", linestyle='solid', color='blue', marker='o')
     # Customize axes, title, and background
     plt.xlabel('Layer #', fontweight='light')
     plt.ylabel('Latent-layer Representation Similarity', fontweight='light')
     plt.grid(True)  # Turn on grid
+    plt.locator_params(axis='x', integer=True)
     plt.gca().set_facecolor('lightgray')  # Set plot background color
-    
+
     plt.legend()
     plt.show()
     ###########################################################################
@@ -236,17 +248,17 @@ def layerwise_CKA(model, input, latents, use_gpu):
     for layer_name_i, layer_output_i in layer_outputs.items():
         j = 0
         for layer_name_j, layer_output_j in layer_outputs.items():
-            cka_corr[i][j] = cka.kernel_CKA(layer_output_i.to(device), layer_output_j.to(device))
+            cka_corr[i][j] = cka.kernel_CKA(layer_output_i.detach().to(device), layer_output_j.detach().to(device))
             j += 1
         i += 1
-    
+
     # Plot the heatmap
-    fig = sns.heatmap(cka_corr.detach().cpu().numpy(), 
-                    #  xticklabels=layer_outputs.keys(), 
-                    #  yticklabels=layer_outputs.keys(), 
-                     linewidth=0.5, 
+    fig = sns.heatmap(cka_corr.detach().cpu().numpy(),
+                    #  xticklabels=layer_outputs.keys(),
+                    #  yticklabels=layer_outputs.keys(),
+                     linewidth=0.5,
                      cmap = sns.cm.rocket_r)
-    fig.set_title('Inter-layer Representation Similarity')
+    fig.set_title(f'Inter-layer Rep. Sim. ({num_layers}-layers)')
     plt.show()
     ###########################################################################
 
