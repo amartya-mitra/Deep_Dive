@@ -118,6 +118,5 @@ compute_layer_rank(model, activation_func, 'wgt')
 compute_layer_rank(model, activation_func, 'eff_wgt')
 compute_layer_rank(model, activation_func, 'rep', False, x_train)
     
-    
 # Compute CKA similarity
 cka_similarity = layerwise_CKA(model, x_train, x_train, use_gpu)
