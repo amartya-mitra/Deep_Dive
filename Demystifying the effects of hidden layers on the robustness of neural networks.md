@@ -90,8 +90,9 @@ On the other hand, the *top-k* eigenvectors of each of the full NTKs result in:
 ![](./figs/download_0.png)
 On plotting the ranks of the full NTK for each model give us:
 ![](./figs/ntk_rank.png)
-Lastly, the layer-wise NTKs of these models, yields:
+Lastly, the layer-wise NTKs of these models, yields, ![](./figs/download.png)
 ![](./figs/layerw_ntk_rank.png)
+Rank of the NTK for models of various depth using the power-series computation of 
 ## <span style="color:OrangeRed">Discussion</span>
 ## <span style="color:OrangeRed">Conclusion</span>
 In this article, we have explored the intriguing interplay between increasing model depth and the emergence of a simplicity bias in deep over-parameterized neural networks, a topic that has sparked considerable debate and investigation in recent research. Our analysis builds upon and unifies the previously isolated findings of Valle-Perez et al., Huh et al., Masarczyk et al., Shah et al., and Tiwari & Shenoy, offering a comprehensive framework that not only encapsulates the phenomena of model expressivity and simplicity bias but also delves into the practical implications of last-layer retraining as a robustness strategy. By identifying the truncation depth with the span of the initial implicit encoder layer, our work sheds light on the underlying mechanics that enable the preservation and recovery of latent features, thus facilitating effective retraining strategies. This insight not only advances our understanding of the structural dynamics within neural networks but also proposes a methodical approach to enhancing model robustness against spurious correlations. As the field continues to evolve, we anticipate that our findings will serve as a foundation for future research aimed at optimizing neural network design for both performance and reliability, particularly in out-of-distribution contexts.
@@ -99,3 +100,5 @@ In this article, we have explored the intriguing interplay between increasing mo
 ----
 
 We wanted to extract and study the hidden layer representations of a trained feed forward neural network
+
+https://www.quantamagazine.org/does-ai-know-what-an-apple-is-she-aims-to-find-out-20240425/
