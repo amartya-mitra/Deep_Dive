@@ -1,0 +1,6 @@
+What have we done till now?
+- Have setup two data generation approaches
+- Have created a trainer for the full model
+- Have created a trainer for the NTK version of the model
+- Tried creating but failed, to create a trainer for the piped NTK version of the model ---> Needs attention
+- Tried plotting the performance (loss and accuracy) of the full, NTK and hybrid versions of the models
