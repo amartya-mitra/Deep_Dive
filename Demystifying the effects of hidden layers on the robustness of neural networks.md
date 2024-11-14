@@ -104,3 +104,23 @@ In this article, we have explored the intriguing interplay between increasing mo
 We wanted to extract and study the hidden layer representations of a trained feed forward neural network
 
 https://www.quantamagazine.org/does-ai-know-what-an-apple-is-she-aims-to-find-out-20240425/
+
+- how can openai store all their customer fine tuned models?
+- what are long context LLMs? how are they architecturally different?
+- can we improve the transformer's quadratic scaling (w/ input) law? seems like RetNet is a proposition. Other options are Flash and Sigmoid attention.
+- what are some RLHF alternatives? DPO, CPL
+- how is Meta's rlhf procedure different from openais?
+
+- Uploaded the notebook and the associated .py files onto Google Colab
+- a bunch of variables are defined. I believe they are prime number choice, learning rate, data splitting ratio, model architecture choices etc. They do use quadratic activation here. Plus there is the data corruption percentage
+- What we could or should look at: The dataset definition, the optimizer choice, the model choice, corruption amount, and corruption type
+	- The model: accepts a prime number `p` and defines an appropriate input layer
+		- It has only a single hidden layer
+	- Corruption amount: 10%
+	- Corruption type: random target label corruption
+	- activation function: quadratic
+- The results indicate an un-memorization of the corrupted data --> Why?
+- Variation of the above experiment by reducing batch size and increasing max_steps --> similar observation except the training data isn't fully memorized
+- change activation to GeLU, reduce learning_rate, and increase max_steps --> similar results except smoother curves
+- 
+- https://github.com/code4DB/LLM4DB
