@@ -2,7 +2,8 @@ import sys
 import os
 import importlib
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '')))
-# sys.path.append('.')
+sys.path.append(os.getcwd() + '/Deep_Dive/utils/')
+# sys.path.append('/Users/amartya/Library/CloudStorage/GoogleDrive-amitr003@ucr.edu/My Drive/GitHub/Deep_Dive/utils/')
 from lib import *
 from data import *
 from toy_model import *

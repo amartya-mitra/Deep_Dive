@@ -22,6 +22,8 @@ var/
 wheels/
 share/python-wheels/
 *.egg-info/
+archive/*
+data/dsprites.npz
 .installed.cfg
 *.egg
 MANIFEST
