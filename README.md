@@ -2,7 +2,7 @@
 
 ## Overview
 
-This project provides a theoretical and empirical investigation into **how depth affects neural network representations**, with a focus on understanding the mechanisms behind **simplicity bias** and its implications for **Out-of-Distribution (OOD) robustness**. The work aims to unify seemingly contradictory observations about depth in neural networks: while deeper networks have greater expressivity, over-parameterized deep models often exhibit a bias toward simpler functional forms.
+This project provides a theoretical & empirical investigation into **how depth affects neural network representations**, with a focus on understanding the mechanisms behind **simplicity bias** and its implications for **Out-of-Distribution (OOD) robustness**. The work aims to unify seemingly contradictory observations about depth in neural networks: while deeper networks have greater expressivity, over-parameterized deep models often exhibit a bias toward simpler functional forms.
 
 ### Core Research Question
 
