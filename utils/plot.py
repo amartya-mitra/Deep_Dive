@@ -1,7 +1,9 @@
 from lib import *
+import os
 
 # Plot loss and error curves
-def plot_metrics(train_losses, test_losses, val_losses, train_errors, test_errors, val_errors):
+def plot_metrics(train_losses, test_losses, val_losses, train_errors, test_errors, val_errors, save_path=None):
+
   # Set modern style for plot elements
   plt.style.use("seaborn-v0_8-pastel")  # Or choose a different style you prefer
 
@@ -30,7 +32,13 @@ def plot_metrics(train_losses, test_losses, val_losses, train_errors, test_error
   ax2.legend()
 
   plt.tight_layout()  # Adjust spacing between subplots
-  plt.show()
+  if save_path:
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    plt.savefig(save_path)
+    plt.close()
+  else:
+    plt.show()
+
 
 # Plot decision boundary
 def toy_plot(model, data, y, activation_func, seed, feature_dict=None):
@@ -111,7 +119,51 @@ def custom_imshow(axis, ys, args, center=False):
         axis.imshow(ys.cpu().reshape(args.test_resolution, args.test_resolution).t(),
                     interpolation=None, cmap=args.cmap, extent=(-1, 1, -1, 1), alpha=1,
                     origin='lower', vmin=-minmax, vmax=minmax)
-    else:
         axis.imshow(ys.cpu().reshape(args.test_resolution, args.test_resolution).t(),
                     interpolation=None, cmap=args.cmap, extent=(-1, 1, -1, 1), alpha=1,
                     origin='lower')
+
+def plot_latent_cka_comparison(cka_dict, title="Latent CKA Comparison", save_path=None):
+    """
+    Plot CKA similarities for multiple feature groups across layers.
+    
+    Args:
+        cka_dict: Dictionary {feature_name: [cka_layer_0, cka_layer_1, ...]}
+        title: Plot title
+        save_path: If provided, save plot to this path
+    """
+    plt.style.use("seaborn-v0_8-pastel")
+    plt.figure(figsize=(8, 6))
+    
+    markers = ['o', 's', '^', 'D', 'v', '<', '>']
+    colors = ['blue', 'red', 'green', 'orange', 'purple', 'brown', 'pink']
+    
+    for i, (name, values) in enumerate(cka_dict.items()):
+        xs = range(len(values))
+        plt.plot(xs, values, label=name, marker=markers[i % len(markers)], 
+                 color=colors[i % len(colors)], linestyle='-', linewidth=2, markersize=8)
+    
+    plt.xlabel('Layer Depth', fontweight='bold', fontsize=12)
+    plt.ylabel('CKA Similarity', fontweight='bold', fontsize=12)
+    plt.title(title, fontweight='bold', fontsize=14)
+    plt.grid(True, linestyle='--', alpha=0.7)
+    plt.gca().set_facecolor('#f5f5f5')
+    plt.locator_params(axis='x', integer=True)
+    plt.legend(fontsize=12)
+    plt.tight_layout()
+    
+    if save_path:
+        # Create directory if it doesn't exist
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        plt.savefig(save_path, dpi=300)
+        plt.close()
+    else:
+        plt.show()
+
+def plot_linear_probe_accuracy(acc_dict, title="Linear Probe Accuracy", save_path=None):
+    """
+    Plot linear probe accuracy for multiple factors across layers.
+    """
+    # Re-use the same plotting logic as CKA
+    plot_latent_cka_comparison(acc_dict, title, save_path)
+

@@ -1,7 +1,12 @@
 from lib import *
 from plot import *
 from toy_model import *
+from plot import *
+from toy_model import *
 import os
+from sklearn.linear_model import LogisticRegression
+from sklearn.preprocessing import StandardScaler
+from collections import defaultdict
 
 # Ensure that the model and data tensor are on the same device
 def ensure_same_device(model, data, device):
@@ -380,7 +385,8 @@ def train_model_loop(model,
 
   return train_losses, test_losses, val_losses, train_errors, test_errors, val_errors
 
-def train_model(model, epochs, use_early_stopping, use_gpu, train_dict, inputs, targets, seed=0):
+def train_model(model, epochs, use_early_stopping, use_gpu, train_dict, inputs, targets, seed=0, save_path=None):
+
   # Set seed for reproducibility
   set_seed(seed)
 
@@ -435,7 +441,8 @@ def train_model(model, epochs, use_early_stopping, use_gpu, train_dict, inputs, 
                                                                                                   use_early_stopping)
   
   # Plot and return trained model
-  plot_metrics(train_losses, test_losses, val_losses, train_errors, test_errors, val_errors)
+  plot_metrics(train_losses, test_losses, val_losses, train_errors, test_errors, val_errors, save_path=save_path)
+
   return model
 
 def mat_centering(mat):
@@ -582,3 +589,106 @@ def get_rank(A, hard=False):
         soft_rank = torch.exp(entropy).item()
         # soft_rank = entropy.item()
         return soft_rank
+
+def latent_CKA_analysis(model, input_data, latents, latent_indices_dict, use_gpu, save_path=None):
+    """
+    Compute CKA between each layer output and specific groups of latent factors.
+    
+    Args:
+        model: Trained PyTorch model
+        input_data: Input tensor (N, D)
+        latents: Latent values tensor (N, K)
+        latent_indices_dict: Dict mapping name -> list of indices (e.g., {'Core': [1, 2]})
+        use_gpu: Boolean
+        save_path: Path to save the plot (optional)
+        
+    Returns:
+        results_dict: Dictionary mapping name -> list of CKA values per layer
+    """
+    device = torch.device('cuda' if use_gpu and torch.cuda.is_available() else 'cpu')
+    model = model.to(device)
+    input_data = input_data.to(device)
+    latents = latents.to(device)
+    
+    layer_outputs = get_all_layer_outputs(model, input_data)
+    
+    if use_gpu:
+        cka = CudaCKA(device)
+    else:
+        cka = CKA()
+    
+    results = defaultdict(list)
+    
+    # Pre-compute latent kernels to save time? 
+    # Actually, latents change per group, so we compute on the fly.
+    
+    print("Computing Latent CKA...")
+    for group_name, indices in latent_indices_dict.items():
+        # Select relevant latent columns
+        # Check if indices is a list or single int
+        if isinstance(indices, int):
+            indices = [indices]
+        
+        target_latents = latents[:, indices]
+        
+        for layer_name, layer_out in layer_outputs.items():
+            # Compute CKA
+            # Detach and move to device
+            feat = layer_out.detach()
+            val = cka.kernel_CKA(feat, target_latents).item()
+            results[group_name].append(val)
+            
+    # Plot results
+    if save_path:
+        plot_latent_cka_comparison(results, title="Layer-wise CKA with Latent Factors", save_path=save_path)
+        
+    return results
+
+def linear_probe_analysis(model, input_data, latent_classes, latent_indices_dict, use_gpu, save_path=None):
+    """
+    Train linear probes (Logistic Regression) to predict latent factors from layer outputs.
+    
+    Args:
+        model: Trained model
+        input_data: Input tensor
+        latent_classes: Integer latent classes (N, K)
+        latent_indices_dict: Dict mapping name -> index (int)
+        
+    Returns:
+        results: Dict {factor_name: [accuracy_layer_0, ...]}
+    """
+    device = torch.device('cuda' if use_gpu and torch.cuda.is_available() else 'cpu')
+    model = model.to(device)
+    input_data = input_data.to(device)
+    
+    # Get layer representations
+    layer_outputs = get_all_layer_outputs(model, input_data)
+    
+    # Convert everything to CPU numpy for SKLearn
+    layer_feats = []
+    for layer_out in layer_outputs.values():
+        layer_feats.append(layer_out.detach().cpu().numpy())
+    
+    results = defaultdict(list)
+    
+    print("Running Linear Probes...")
+    for factor_name, factor_idx in latent_indices_dict.items():
+        targets = latent_classes[:, factor_idx].cpu().numpy()
+        
+        for layer_idx, feats in enumerate(layer_feats):
+            # Scale features
+            scaler = StandardScaler()
+            X_scaled = scaler.fit_transform(feats)
+            
+            # Train Linear Classifier
+            # Use limited iterations to keep it fast, or standard
+            clf = LogisticRegression(max_iter=1000, solver='lbfgs')
+            clf.fit(X_scaled, targets)
+            acc = clf.score(X_scaled, targets)
+            
+            results[factor_name].append(acc)
+            
+    if save_path:
+        plot_linear_probe_accuracy(results, title="Linear Probe Accuracy vs Depth", save_path=save_path)
+        
+    return results
