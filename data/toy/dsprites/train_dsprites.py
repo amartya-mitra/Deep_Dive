@@ -95,7 +95,7 @@ def run_experiment():
     # 1. Setup Data
     dsprites_path = os.path.join(parent_dir, 'dsprites/dsprites_ndarray_co1sh3sc6or40x32y32_64x64.npz')
     # Load more samples to allow for filtering
-    X_raw, _, lv_raw, _, lc_raw, _ = load_dsprites(dsprites_path, n_samples=10000)
+    X_raw, _, lv_raw, _, lc_raw, _ = load_dsprites(dsprites_path, n_samples=50000)
     
     # Concatenate back to split manually after filtering
     # Actually load_dsprites splits 80/20. Let's just use the raw returns if we can, or combine.
@@ -113,6 +113,11 @@ def run_experiment():
         X_raw, lc_raw, lv_raw, [1, 2], [4, 5], 0.9
     )
     print(f"Training Set Size: {len(X_train)}")
+    
+    # Check Class Balance
+    n_pos = (y_train == 1).sum().item()
+    n_neg = (y_train == 0).sum().item()
+    print(f"Training Class Balance: Pos={n_pos} ({n_pos/len(y_train):.2%}), Neg={n_neg} ({n_neg/len(y_train):.2%})")
     
     # Construct OOD Test Set (No Bias, p=0.5)
     # Use the 'Test' part from load_dsprites (which comes from the remaining pool)
@@ -137,7 +142,13 @@ def run_experiment():
     print(f"ID Test Set Size: {len(X_id)}")
     
     # 2. Config
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if torch.cuda.is_available():
+        device = torch.device('cuda')
+    elif torch.backends.mps.is_available():
+        device = torch.device('mps')
+    else:
+        device = torch.device('cpu')
+    print(f"Running on device: {device}")
     depths = [1, 2, 3, 4, 5, 6, 7, 8]
     hidden_dim = 120
     input_dim = 4096
@@ -165,11 +176,14 @@ def run_experiment():
             'min_loss_change': 0.0001,
             'no_improve_threshold': 50, # Reduced for speed
             'loss_mp': 1,
+            'weight_decay': 1e-4, # L2 Regularization to prevent overfitting
+            'batch_size': 64,     # Mini-batch training
             'wandb': False
         }
         
         # Train
-        model = train_model(model, train_dict['epochs'], True, torch.cuda.is_available(), 
+        # Pass use_gpu=True generically, misc.py handles MPS/CUDA
+        model = train_model(model, train_dict['epochs'], True, True, 
                             train_dict, X_train, y_train, seed=42,
                             save_path=os.path.join(figs_dir, f'metrics_depth_{depth}.png'))
 
@@ -208,7 +222,7 @@ def run_experiment():
         # Let's use OOD set (balanced) to check representation quality.
         
         cka_results = latent_CKA_analysis(model, X_ood, lv_ood, latent_indices, 
-                                          torch.cuda.is_available(), 
+                                          True, 
                                           save_path=os.path.join(figs_dir, f'cka_depth_{depth}.png'))
         
         # Find peak depth for Core

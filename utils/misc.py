@@ -62,7 +62,16 @@ def compute_ntk(x, model, use_gpu, batch_size=100):
     
 
     """Compute the dot product in batches to reduce memory usage."""
-    device = torch.device('cuda' if torch.cuda.is_available() and use_gpu else 'cpu')
+    if use_gpu:
+        if torch.cuda.is_available():
+            device = torch.device('cuda')
+        elif torch.backends.mps.is_available():
+             device = torch.device('mps')
+        else:
+            device = torch.device('cpu')
+    else:
+        device = torch.device('cpu')
+
     n = jac.shape[0]
     jac.to(device)
     result = torch.zeros((n, n), device=jac.device)
@@ -210,7 +219,15 @@ def layerwise_CKA(model, input, latents, use_gpu):
     # Assuming 'model' is your trained model and 'input_data' is your dataset
     layer_outputs = get_all_layer_outputs(model, input)
 
-    device = torch.device('cuda' if use_gpu else torch.device('cpu'))
+    if use_gpu:
+        if torch.cuda.is_available():
+            device = torch.device('cuda')
+        elif torch.backends.mps.is_available():
+             device = torch.device('mps')
+        else:
+            device = torch.device('cpu')
+    else:
+        device = torch.device('cpu')
 
     if use_gpu == False:
         cka = CKA()
@@ -312,14 +329,27 @@ def train_model_loop(model,
       model.train()
       running_loss = 0.0
 
-      # Forward pass
-      outputs = model(X_train)
-      loss = train_dict['loss_mp'] * criterion(outputs, y_train)
+      # Mini-batch training
+      batch_size = train_dict.get('batch_size', X_train.shape[0]) # Default to full batch if not specified
+      permutation = torch.randperm(X_train.size()[0])
+      
+      for i in range(0, X_train.size()[0], batch_size):
+          indices = permutation[i:i+batch_size]
+          batch_x, batch_y = X_train[indices], y_train[indices]
 
-      # Backward and optimize
-      optimizer.zero_grad()
-      loss.backward()
-      optimizer.step()
+          # Forward pass
+          outputs = model(batch_x)
+          loss = train_dict['loss_mp'] * criterion(outputs, batch_y)
+
+          # Backward and optimize
+          optimizer.zero_grad()
+          loss.backward()
+          optimizer.step()
+      
+      # Compute full-batch loss for metrics (at end of epoch)
+      with torch.no_grad():
+          full_outputs = model(X_train)
+          loss = train_dict['loss_mp'] * criterion(full_outputs, y_train)
 
       ############## Compute Metrics ################
       train_outputs = model(X_train)
@@ -391,7 +421,17 @@ def train_model(model, epochs, use_early_stopping, use_gpu, train_dict, inputs, 
   set_seed(seed)
 
   # Set device
-  device = torch.device('cuda' if torch.cuda.is_available() and use_gpu else 'cpu')
+  if use_gpu:
+      if torch.cuda.is_available():
+          device = torch.device('cuda')
+      elif torch.backends.mps.is_available():
+           device = torch.device('mps')
+      else:
+          device = torch.device('cpu')
+  else:
+      device = torch.device('cpu')
+  
+  print(f"Using device: {device}")
 
   # Early stopping parameters
   if use_early_stopping:
@@ -406,11 +446,13 @@ def train_model(model, epochs, use_early_stopping, use_gpu, train_dict, inputs, 
   if train_dict['optimizer'] == 'sgd':
      optimizer = optim.SGD(model.parameters(),
                         lr=train_dict['lr'],
-                        momentum=train_dict['momentum'])
+                        momentum=train_dict['momentum'],
+                        weight_decay=train_dict.get('weight_decay', 0))
 
   elif train_dict['optimizer'] == 'adam':
      optimizer = optim.Adam(model.parameters(),
-                        lr=train_dict['lr'])
+                        lr=train_dict['lr'],
+                        weight_decay=train_dict.get('weight_decay', 0))
 
   # Move inputs and targets to device
   inputs = inputs.to(device)
@@ -517,7 +559,16 @@ def compute_layer_rank(model, activation_func, type, scale = False, input=None, 
     plot_rank(se, le, xlabel='Depth', ylabel='Eff. Weight Rank', title=f'Eff. Wgt. Rank vs. Depth ({activation_func})')
 
   elif type == 'rep':
-    device = 'cuda' if use_gpu else 'cpu'
+    if use_gpu:
+        if torch.cuda.is_available():
+            device = torch.device('cuda')
+        elif torch.backends.mps.is_available():
+             device = torch.device('mps')
+        else:
+            device = torch.device('cpu')
+    else:
+        device = torch.device('cpu')
+
     model, input = ensure_same_device(model, input, device)
 
     xlabel='Depth'
@@ -605,7 +656,15 @@ def latent_CKA_analysis(model, input_data, latents, latent_indices_dict, use_gpu
     Returns:
         results_dict: Dictionary mapping name -> list of CKA values per layer
     """
-    device = torch.device('cuda' if use_gpu and torch.cuda.is_available() else 'cpu')
+    if use_gpu:
+        if torch.cuda.is_available():
+            device = torch.device('cuda')
+        elif torch.backends.mps.is_available():
+             device = torch.device('mps')
+        else:
+            device = torch.device('cpu')
+    else:
+        device = torch.device('cpu')
     model = model.to(device)
     input_data = input_data.to(device)
     latents = latents.to(device)
@@ -657,7 +716,15 @@ def linear_probe_analysis(model, input_data, latent_classes, latent_indices_dict
     Returns:
         results: Dict {factor_name: [accuracy_layer_0, ...]}
     """
-    device = torch.device('cuda' if use_gpu and torch.cuda.is_available() else 'cpu')
+    if use_gpu:
+        if torch.cuda.is_available():
+            device = torch.device('cuda')
+        elif torch.backends.mps.is_available():
+             device = torch.device('mps')
+        else:
+            device = torch.device('cpu')
+    else:
+        device = torch.device('cpu')
     model = model.to(device)
     input_data = input_data.to(device)
     
