@@ -90,7 +90,7 @@ def filter_dataset_for_bias(X, latents_classes, latents_values, core_indices, sp
     
 
 def run_experiment():
-    print("Starting dSprites Latent Recovery Experiment...")
+    print("Starting dSprites Latent Recovery Experiment...", flush=True)
     
     # 1. Setup Data
     dsprites_path = os.path.join(parent_dir, 'dsprites/dsprites_ndarray_co1sh3sc6or40x32y32_64x64.npz')
@@ -112,12 +112,12 @@ def run_experiment():
     X_train, y_train, lc_train, lv_train = filter_dataset_for_bias(
         X_raw, lc_raw, lv_raw, [1, 2], [4, 5], 0.9
     )
-    print(f"Training Set Size: {len(X_train)}")
+    print(f"Training Set Size: {len(X_train)}", flush=True)
     
     # Check Class Balance
     n_pos = (y_train == 1).sum().item()
     n_neg = (y_train == 0).sum().item()
-    print(f"Training Class Balance: Pos={n_pos} ({n_pos/len(y_train):.2%}), Neg={n_neg} ({n_neg/len(y_train):.2%})")
+    print(f"Training Class Balance: Pos={n_pos} ({n_pos/len(y_train):.2%}), Neg={n_neg} ({n_neg/len(y_train):.2%})", flush=True)
     
     # Construct OOD Test Set (No Bias, p=0.5)
     # Use the 'Test' part from load_dsprites (which comes from the remaining pool)
@@ -148,7 +148,7 @@ def run_experiment():
         device = torch.device('mps')
     else:
         device = torch.device('cpu')
-    print(f"Running on device: {device}")
+    print(f"Running on device: {device}", flush=True)
     depths = [1, 2, 3, 4, 5, 6, 7, 8]
     hidden_dim = 120
     input_dim = 4096
@@ -164,7 +164,7 @@ def run_experiment():
     
     # 3. Training Loop
     for depth in depths:
-        print(f"\nTraining Depth {depth}...")
+        print(f"\nTraining Depth {depth}...", flush=True)
         
         model = Classifier(input_dim, depth, hidden_dim, num_classes, 'relu')
         
@@ -201,7 +201,7 @@ def run_experiment():
             acc_ood = (out_ood.argmax(1) == y_ood.to(device)).float().mean().item()
             ood_accuracies.append(acc_ood)
             
-        print(f"Depth {depth}: ID Acc = {acc_id:.4f}, OOD Acc = {acc_ood:.4f}")
+        print(f"Depth {depth}: ID Acc = {acc_id:.4f}, OOD Acc = {acc_ood:.4f}", flush=True)
         
         # Analysis
         # Latent CKA
@@ -212,6 +212,7 @@ def run_experiment():
         # Orientation(3) is NOISE.
         
         latent_indices = {
+            'All': [1, 2, 4, 5],
             'Core': [1, 2],
             'Spurious': [4, 5],
             'Noise': [3]

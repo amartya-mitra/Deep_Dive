@@ -3,5 +3,6 @@
         "minimap.background": "#00000000",
         "scrollbar.shadow": "#00000000"
     },
-    "python.analysis.autoImportCompletions": true
+    "python.analysis.autoImportCompletions": true,
+    "git.ignoreLimitWarning": true
 }

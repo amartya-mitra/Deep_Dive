@@ -20,14 +20,14 @@ def plot_metrics(train_losses, test_losses, val_losses, train_errors, test_error
   ax1.grid(True)
   ax1.legend()
 
-  # Error Curves
+  # Accuracy Curves (1 - Error)
   ax2 = plt.subplot(122)
-  ax2.plot(train_errors, label='Training Error', linestyle='--', color='blue')
-  ax2.plot(test_errors, label='Test Error', linestyle='-', color='red')
-  ax2.plot(val_errors, label='Validation Error', linestyle='-.', color='green')
+  ax2.plot([1-e for e in train_errors], label='Training Acc', linestyle='--', color='blue')
+  ax2.plot([1-e for e in test_errors], label='Test Acc', linestyle='-', color='red')
+  ax2.plot([1-e for e in val_errors], label='Validation Acc', linestyle='-.', color='green')
   ax2.set_xlabel('Epochs', fontweight='bold')
-  ax2.set_ylabel('Error', fontweight='bold')
-  ax2.set_title('0-1 Error Curves', fontweight='bold')
+  ax2.set_ylabel('Accuracy', fontweight='bold')
+  ax2.set_title('Accuracy Curves', fontweight='bold')
   ax2.grid(True)
   ax2.legend()
 
@@ -164,6 +164,34 @@ def plot_linear_probe_accuracy(acc_dict, title="Linear Probe Accuracy", save_pat
     """
     Plot linear probe accuracy for multiple factors across layers.
     """
-    # Re-use the same plotting logic as CKA
-    plot_latent_cka_comparison(acc_dict, title, save_path)
+    """
+    Plot linear probe accuracy for multiple factors across layers.
+    """
+    # Re-use the same plotting logic as CKA but change Y-label
+    plt.style.use("seaborn-v0_8-pastel")
+    plt.figure(figsize=(8, 6))
+    
+    markers = ['o', 's', '^', 'D', 'v', '<', '>']
+    colors = ['blue', 'red', 'green', 'orange', 'purple', 'brown', 'pink']
+    
+    for i, (name, values) in enumerate(acc_dict.items()):
+        xs = range(len(values))
+        plt.plot(xs, values, label=name, marker=markers[i % len(markers)], 
+                 color=colors[i % len(colors)], linestyle='-', linewidth=2, markersize=8)
+    
+    plt.xlabel('Layer Depth', fontweight='bold', fontsize=12)
+    plt.ylabel('Probing Accuracy', fontweight='bold', fontsize=12)
+    plt.title(title, fontweight='bold', fontsize=14)
+    plt.grid(True, linestyle='--', alpha=0.7)
+    plt.gca().set_facecolor('#f5f5f5')
+    plt.locator_params(axis='x', integer=True)
+    plt.legend(fontsize=12)
+    plt.tight_layout()
+    
+    if save_path:
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        plt.savefig(save_path, dpi=300)
+        plt.close()
+    else:
+        plt.show()
 
