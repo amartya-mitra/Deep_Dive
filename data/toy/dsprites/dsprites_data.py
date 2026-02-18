@@ -48,7 +48,7 @@ def load_dsprites(path, n_samples=5000, seed=42):
 def generate_labels(latents_classes, latents_values,
                     core_indices=[1, 2],
                     spurious_indices=[4, 5],
-                    spurious_correlation=0.9, seed=42):
+                    spurious_correlation=0.9, seed=42, logic='OR'):
     """
     Generate binary labels from 2 core features (Shape, Scale).
     Returns y (core labels) and core_labels (identical).
@@ -60,6 +60,7 @@ def generate_labels(latents_classes, latents_values,
         spurious_indices: indices of spurious latent factors [PosX=4, PosY=5]
         spurious_correlation: Not used directly here, handled by dataset filtering.
         seed: random seed
+        logic: 'OR' or 'AND'. Defines how core features are combined.
     
     Returns:
         y: (n,) binary labels {0, 1}
@@ -71,15 +72,31 @@ def generate_labels(latents_classes, latents_values,
     # Step 1: Generate labels from BOTH core features jointly
     
     shape_classes = latents_classes[:, core_indices[0]]  # 0, 1, 2
-    shape_binary = (shape_classes >= 1).long()            # square=0 vs {ellipse,heart}=1
+    
+    # Shape Binary: 
+    # If logic is OR (original), 1=Ellipse/Heart.
+    # If logic is AND (filtered), we dropped Ellipse(1), so we care about Heart(2).
+    # Being explicit: Square=0.
+    if logic == 'AND':
+        # Assuming Ellipses are dropped, so we distinguish Heart(2) vs Square(0).
+        # We treat only Heart as positive.
+        shape_binary = (shape_classes == 2).long()
+    else:
+        # Original: Ellipse(1) + Heart(2) are positive.
+        shape_binary = (shape_classes >= 1).long()
     
     scale_values = latents_values[:, core_indices[1]]
     scale_median = scale_values.median()
     scale_binary = (scale_values > scale_median).long()   # small=0 vs large=1
     
-    # Core label: OR of shape_binary and scale_binary
-    core_score = shape_binary + scale_binary
-    core_labels = (core_score >= 1).long()
+    # Core label
+    if logic == 'AND':
+         core_score = shape_binary + scale_binary
+         core_labels = (core_score == 2).long() # Both must be 1
+    else:
+        # OR
+        core_score = shape_binary + scale_binary
+        core_labels = (core_score >= 1).long()
     
     # Note: Spurious correlation logic is handled by dataset filtering in train_dsprites.py
     # We return core_labels as y.

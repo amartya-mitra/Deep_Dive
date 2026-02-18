@@ -756,6 +756,52 @@ def linear_probe_analysis(model, input_data, latent_classes, latent_indices_dict
             results[factor_name].append(acc)
             
     if save_path:
-        plot_linear_probe_accuracy(results, title="Linear Probe Accuracy vs Depth", save_path=save_path)
+        plot_linear_probe_accuracy(results, title=f"Linear Probe Accuracy ({save_path.split('_')[-1].replace('.png', '')})", save_path=save_path)
         
     return results
+
+def inter_layer_cka_analysis(model, input_data, use_gpu, save_path=None):
+    """
+    Compute Pairwise CKA between all layers of the model.
+    Returns a matrix of size (L, L) where L is number of layers.
+    """
+    if use_gpu:
+        if torch.cuda.is_available():
+            device = torch.device('cuda')
+        elif torch.backends.mps.is_available():
+             device = torch.device('mps')
+        else:
+            device = torch.device('cpu')
+    else:
+        device = torch.device('cpu')
+    model = model.to(device)
+    input_data = input_data.to(device)
+    
+    layer_outputs = get_all_layer_outputs(model, input_data)
+    
+    if use_gpu:
+        cka = CudaCKA(device)
+    else:
+        cka = CKA()
+        
+    layer_names = list(layer_outputs.keys())
+    n_layers = len(layer_names)
+    cka_matrix = np.zeros((n_layers, n_layers))
+    
+    print("Computing Inter-Layer CKA...")
+    
+    # Pre-compute features?
+    feats = []
+    for name in layer_names:
+        feats.append(layer_outputs[name].detach())
+        
+    for i in range(n_layers):
+        for j in range(i, n_layers): # Symmetric
+            val = cka.kernel_CKA(feats[i], feats[j]).item()
+            cka_matrix[i, j] = val
+            cka_matrix[j, i] = val
+            
+    if save_path:
+        plot_inter_layer_cka(cka_matrix, save_path=save_path)
+        
+    return cka_matrix

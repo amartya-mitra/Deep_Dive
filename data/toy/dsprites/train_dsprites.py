@@ -25,7 +25,7 @@ from utils.misc import *
 from utils.plot import *
 from data.toy.dsprites.dsprites_data import load_dsprites, generate_labels
 
-def filter_dataset_for_bias(X, latents_classes, latents_values, core_indices, spurious_indices, p_correlation, seed=42):
+def filter_dataset_for_bias(X, latents_classes, latents_values, core_indices, spurious_indices, p_correlation, seed=42, logic='OR'):
     """
     Filter dataset to enforce spurious correlation.
     We want Y (determined by Core) to correlate with Spurious Feature with probability `p_correlation`.
@@ -36,14 +36,20 @@ def filter_dataset_for_bias(X, latents_classes, latents_values, core_indices, sp
     # 1. Determine Core Labels (Target Y)
     # Using the logic from generate_labels but just getting the core part
     # We call generate_labels but we only care about core_labels
-    _, core_labels = generate_labels(latents_classes, latents_values, core_indices, spurious_indices, 1.0, seed)
+    _, core_labels = generate_labels(latents_classes, latents_values, core_indices, spurious_indices, 1.0, seed, logic=logic)
     y = core_labels # This is the TRUE label
     
     # 2. Determine Spurious Feature 'Bit'
     # PosX/PosY > Median -> 1, else 0.
     pos_x = latents_values[:, spurious_indices[0]]
     pos_y = latents_values[:, spurious_indices[1]]
-    spurious_bit = ((pos_x > pos_x.median()).long() + (pos_y > pos_y.median()).long() >= 1).long()
+    
+    if logic == 'AND':
+         # Spurious AND: Both must be > Median
+         spurious_bit = ((pos_x > pos_x.median()).long() + (pos_y > pos_y.median()).long() == 2).long()
+    else:
+         # Spurious OR
+         spurious_bit = ((pos_x > pos_x.median()).long() + (pos_y > pos_y.median()).long() >= 1).long()
     
     # 3. Align Check
     aligned = (y == spurious_bit)
@@ -71,13 +77,6 @@ def filter_dataset_for_bias(X, latents_classes, latents_values, core_indices, sp
             keep_mis_indices = np.random.choice(misaligned_indices, n_keep_mis, replace=False)
             final_indices = np.concatenate([aligned_indices, keep_mis_indices])
         else:
-            # We don't have enough aligned samples to drive p up to target? 
-            # Or we have too few misaligned? 
-            # If n_keep_mis >= n_misaligned, we keep all misaligned, and we might need to drop aligned?
-            # No, if we want high correlation, we primarily drop misaligned.
-            # If we keep all misaligned, p = n_aligned / (n_aligned + n_misaligned) < target.
-            # So we must drop misaligned.
-            # The calculation holds.
             final_indices = np.concatenate([aligned_indices, misaligned_indices]) # Can't achieve target, keep all
     else:
         # Want negative correlation?
@@ -85,6 +84,24 @@ def filter_dataset_for_bias(X, latents_classes, latents_values, core_indices, sp
         final_indices = indices
         
     np.random.shuffle(final_indices)
+
+    # 5. Undersample for Class Balance (if logic is AND) 
+    # Because AND logic creates rare positives (~25%), we undersample negatives to 50/50.
+    if logic == 'AND':
+        y_filtered = y[final_indices]
+        pos_subset_indices = np.where(y_filtered == 1)[0]
+        neg_subset_indices = np.where(y_filtered == 0)[0]
+        
+        n_pos = len(pos_subset_indices)
+        n_neg = len(neg_subset_indices)
+        
+        if n_neg > n_pos:
+            # Undersample negatives to match positives
+            keep_neg_indices = np.random.choice(neg_subset_indices, n_pos, replace=False)
+            balanced_indices = np.concatenate([pos_subset_indices, keep_neg_indices])
+            # Map back to final_indices
+            final_indices = final_indices[balanced_indices]
+            np.random.shuffle(final_indices)
     
     return X[final_indices], y[final_indices], latents_classes[final_indices], latents_values[final_indices]
     
@@ -107,10 +124,17 @@ def run_experiment():
     # I'll combine them.
     # But wait, I can just not use the split and assume `X_raw` (train) is typically large enough.
     
+    # EXP 2: Option 2 (Drop Ellipses + AND Logic)
+    print("Experiment 2: Dropping Ellipses (Class 1) and using AND logic...", flush=True)
+    keep_mask = (lc_raw[:, 1] != 1) # Keep 0(Square) and 2(Heart)
+    X_raw = X_raw[keep_mask]
+    lv_raw = lv_raw[keep_mask]
+    lc_raw = lc_raw[keep_mask]
+    
     # Filter for Training Set (High Bias)
     print("Constructing Biased Training Set (p=0.9)...")
     X_train, y_train, lc_train, lv_train = filter_dataset_for_bias(
-        X_raw, lc_raw, lv_raw, [1, 2], [4, 5], 0.9
+        X_raw, lc_raw, lv_raw, [1, 2], [4, 5], 0.9, logic='AND'
     )
     print(f"Training Set Size: {len(X_train)}", flush=True)
     
@@ -131,13 +155,13 @@ def run_experiment():
     # Natural distribution is independent, so p=0.5.
     # However, to compare accuracy, we might want to balance class 0 and 1.
     X_ood, y_ood, lc_ood, lv_ood = filter_dataset_for_bias(
-        X_test_pool, lc_test_pool, lv_test_pool, [1, 2], [4, 5], 0.5
+        X_test_pool, lc_test_pool, lv_test_pool, [1, 2], [4, 5], 0.5, logic='AND'
     )
     print(f"OOD Test Set Size: {len(X_ood)}")
     
     # ID Test Set (p=0.9 like train)
     X_id, y_id, lc_id, lv_id = filter_dataset_for_bias(
-        X_test_pool, lc_test_pool, lv_test_pool, [1, 2], [4, 5], 0.9
+        X_test_pool, lc_test_pool, lv_test_pool, [1, 2], [4, 5], 0.9, logic='AND'
     )
     print(f"ID Test Set Size: {len(X_id)}")
     
@@ -242,6 +266,11 @@ def run_experiment():
         linear_probe_analysis(model, X_ood, lc_ood, probe_indices, 
                               torch.cuda.is_available(),
                               save_path=os.path.join(figs_dir, f'probe_depth_{depth}.png'))
+
+        # Inter-Layer CKA
+        inter_layer_cka_analysis(model, X_ood, 
+                                 torch.cuda.is_available(),
+                                 save_path=os.path.join(figs_dir, f'inter_layer_cka_depth_{depth}.png'))
 
 
     # 4. Summary Plots

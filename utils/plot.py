@@ -195,3 +195,30 @@ def plot_linear_probe_accuracy(acc_dict, title="Linear Probe Accuracy", save_pat
     else:
         plt.show()
 
+
+def plot_inter_layer_cka(cka_matrix, save_path=None):
+    """
+    Plot heatmap of inter-layer CKA similarity.
+    """
+    plt.style.use("seaborn-v0_8-pastel")
+    plt.figure(figsize=(8, 7))
+    
+    # seaborn heatmap is best, but if implicit dependencies are tricky, use imshow.
+    # User has seaborn installed.
+    import seaborn as sns
+    
+    ax = sns.heatmap(cka_matrix, annot=False, cmap='magma_r', vmin=0, vmax=1, square=True,
+                xticklabels=True, yticklabels=True)
+    
+    plt.title("Inter-Layer CKA Similarity", fontweight='bold')
+    plt.xlabel("Layer Index")
+    plt.ylabel("Layer Index")
+    plt.tight_layout()
+    
+    if save_path:
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        plt.savefig(save_path, dpi=300)
+        plt.close()
+    else:
+        plt.show()
+
