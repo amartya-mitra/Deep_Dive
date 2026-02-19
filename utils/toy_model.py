@@ -55,46 +55,42 @@ class BinaryClassifier(nn.Module):
         return self.model(x)
 
 class Classifier(nn.Module):
-    def __init__(self, input_dim, num_hidden_layers, hidden_layer_width, output_dim, activation_func):
+    def __init__(self, input_dim, num_hidden_layers, hidden_layer_width, output_dim, activation_func, dropout=0.0):
         super(Classifier, self).__init__()
 
         # Create a list to hold the layers
         layers = []
 
+        # Helper to get activation module
+        def _get_activation():
+            if activation_func == 'relu':
+                return nn.ReLU()
+            elif activation_func == 'tanh':
+                return nn.Tanh()
+            elif activation_func == 'sigmoid':
+                return nn.Sigmoid()
+            elif activation_func == 'linear':
+                return LinearActivation()
+            elif activation_func == 'quadratic':
+                return QuadraticActivation()
+            else:
+                raise ValueError("Unsupported activation function")
+
         # Add the first hidden layer
         layers.append(nn.Linear(input_dim, hidden_layer_width))
-
-        # Add the chosen activation function
-        if activation_func == 'relu':
-            layers.append(nn.ReLU())
-        elif activation_func == 'tanh':
-            layers.append(nn.Tanh())
-        elif activation_func == 'sigmoid':
-            layers.append(nn.Sigmoid())
-        elif activation_func == 'linear':
-            layers.append(LinearActivation())
-        elif activation_func == 'quadratic':
-            layers.append(QuadraticActivation())
-        else:
-            raise ValueError("Unsupported activation function")
+        layers.append(_get_activation())
+        if dropout > 0:
+            layers.append(nn.Dropout(dropout))
 
         # Add subsequent hidden layers
         for _ in range(num_hidden_layers - 1):
             layers.append(nn.Linear(hidden_layer_width, hidden_layer_width))
-            if activation_func == 'relu':
-                layers.append(nn.ReLU())
-            elif activation_func == 'tanh':
-                layers.append(nn.Tanh())
-            elif activation_func == 'sigmoid':
-                layers.append(nn.Sigmoid())
-            elif activation_func == 'linear':
-                layers.append(LinearActivation())
-            elif activation_func == 'quadratic':
-                layers.append(QuadraticActivation())
+            layers.append(_get_activation())
+            if dropout > 0:
+                layers.append(nn.Dropout(dropout))
 
         # Add the output layer
         layers.append(nn.Linear(hidden_layer_width, output_dim))
-        # layers.append(nn.Sigmoid())  # Assuming binary classification
 
         # Combine all layers into a Sequential model
         self.model = nn.Sequential(*layers)

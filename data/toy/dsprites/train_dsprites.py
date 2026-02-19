@@ -149,6 +149,12 @@ def run_experiment():
     # To get distinct OOD data, we should reload or use the other split.
     # Let's use the 'Test' returned by load_dsprites as the pool for OOD.
     _, X_test_pool, _, lv_test_pool, _, lc_test_pool = load_dsprites(dsprites_path, n_samples=5000, seed=999) # Different seed
+
+    # Filter ellipses from test pool (must match training pool for AND logic)
+    keep_mask_test = (lc_test_pool[:, 1] != 1)
+    X_test_pool = X_test_pool[keep_mask_test]
+    lv_test_pool = lv_test_pool[keep_mask_test]
+    lc_test_pool = lc_test_pool[keep_mask_test]
     
     print("Constructing OOD Test Set (p=0.5)...")
     # p=0.5 means do nothing (natural distribution), but let's filter to be sure or just take it.
@@ -165,6 +171,35 @@ def run_experiment():
     )
     print(f"ID Test Set Size: {len(X_id)}")
     
+    # Compute derived binary probe targets for the OOD set.
+    # These give cardinality-controlled (2-class) probes that are directly
+    # comparable to each other, avoiding the 32-class vs 2-class confound
+    # present in the raw PosX/PosY vs Shape probes.
+
+    # Core bit: (Shape == Heart) AND (Scale > median)  →  the actual decision-relevant signal
+    shape_binary_ood  = (lc_ood[:, 1] == 2).long()
+    scale_binary_ood  = (lv_ood[:, 2] > lv_ood[:, 2].median()).long()
+    core_bit_ood      = (shape_binary_ood + scale_binary_ood == 2).long()   # 1 iff both positive
+
+    # Spurious bit: (PosX > median) AND (PosY > median)  →  the confound signal
+    pos_x_ood         = lv_ood[:, 4]
+    pos_y_ood         = lv_ood[:, 5]
+    spurious_bit_ood  = ((pos_x_ood > pos_x_ood.median()).long() +
+                         (pos_y_ood > pos_y_ood.median()).long() == 2).long()
+
+    # Append as columns 6 and 7 of lc_ood so linear_probe_analysis can index them normally
+    lc_ood = torch.cat([lc_ood,
+                        core_bit_ood.unsqueeze(1),
+                        spurious_bit_ood.unsqueeze(1)], dim=1)
+
+    # Normalize inputs (zero mean, unit variance) using training set statistics
+    train_mean = X_train.mean(dim=0)
+    train_std = X_train.std(dim=0)
+    train_std[train_std == 0] = 1.0  # Avoid division by zero for constant pixels
+    X_train = (X_train - train_mean) / train_std
+    X_ood = (X_ood - train_mean) / train_std
+    X_id = (X_id - train_mean) / train_std
+
     # 2. Config
     if torch.cuda.is_available():
         device = torch.device('cuda')
@@ -173,8 +208,8 @@ def run_experiment():
     else:
         device = torch.device('cpu')
     print(f"Running on device: {device}", flush=True)
-    depths = [1, 2, 3, 4, 5, 6, 7, 8]
-    hidden_dim = 120
+    depths = [3, 4, 5, 6, 7, 8]
+    hidden_dim = 64
     input_dim = 4096
     num_classes = 2
     
@@ -190,18 +225,20 @@ def run_experiment():
     for depth in depths:
         print(f"\nTraining Depth {depth}...", flush=True)
         
-        model = Classifier(input_dim, depth, hidden_dim, num_classes, 'relu')
-        
+        model = Classifier(input_dim, depth, hidden_dim, num_classes, 'relu', dropout=0.2)
+
         train_dict = {
             'epochs': 1500,
-            'lr': 0.02,
+            'lr': 0.005,
             'momentum': 0.9,
             'optimizer': 'sgd',
             'min_loss_change': 0.0001,
-            'no_improve_threshold': 50, # Reduced for speed
+            'no_improve_threshold': 50,
             'loss_mp': 1,
-            'weight_decay': 1e-4, # L2 Regularization to prevent overfitting
-            'batch_size': 64,     # Mini-batch training
+            'weight_decay': 1e-4,
+            'batch_size': 64,
+            'label_smoothing': 0.1,
+            'scheduler': 'cosine',
             'wandb': False
         }
         
@@ -256,12 +293,17 @@ def run_experiment():
         peak_cka_depths.append(peak_layer)
         
         # Linear Probe
-        # Probe using classes (integers)
+        # Probe using classes (integers).
+        # Columns 0-5: original dSprites latent classes (Color, Shape, Scale, Orientation, PosX, PosY)
+        # Column 6:    core_bit     — binary AND of Shape & Scale thresholds (2-class)
+        # Column 7:    spurious_bit — binary AND of PosX & PosY thresholds  (2-class)
         probe_indices = {
-            'Shape': 1,
-            'Scale': 2,
-            'PosX': 4,
-            'PosY': 5
+            'Shape':        1,
+            'Scale':        2,
+            'PosX':         4,
+            'PosY':         5,
+            'Core Bit':     6,
+            'Spurious Bit': 7,
         }
         linear_probe_analysis(model, X_ood, lc_ood, probe_indices, 
                               torch.cuda.is_available(),

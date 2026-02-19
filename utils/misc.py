@@ -299,18 +299,19 @@ def split_data(inputs):
   return train_size, test_size, val_size
 
 # Target should be +1 or -1
-def train_model_loop(model, 
-                     optimizer, 
-                     criterion, 
-                     train_dict, 
-                     X_train, 
-                     y_train, 
-                     X_test, 
-                     y_test, 
-                     X_val, 
-                     y_val, 
-                     epochs, 
-                     use_early_stopping):
+def train_model_loop(model,
+                     optimizer,
+                     criterion,
+                     train_dict,
+                     X_train,
+                     y_train,
+                     X_test,
+                     y_test,
+                     X_val,
+                     y_val,
+                     epochs,
+                     use_early_stopping,
+                     scheduler=None):
   
   # For plotting metrics
   train_losses, test_losses, val_losses = [], [], []
@@ -351,21 +352,24 @@ def train_model_loop(model,
           full_outputs = model(X_train)
           loss = train_dict['loss_mp'] * criterion(full_outputs, y_train)
 
-      ############## Compute Metrics ################
-      train_outputs = model(X_train)
-      train_loss = train_dict['loss_mp'] * criterion(train_outputs, y_train)
-      _, train_predictions = torch.max(train_outputs.data, 1)  # Convert probabilities to 0/1 predictions
-      train_error = torch.mean((train_predictions != y_train).float())
+      ############## Compute Metrics (eval mode, no grad) ################
+      model.eval()
+      with torch.no_grad():
+          train_outputs = model(X_train)
+          train_loss = train_dict['loss_mp'] * criterion(train_outputs, y_train)
+          _, train_predictions = torch.max(train_outputs.data, 1)
+          train_error = torch.mean((train_predictions != y_train).float())
 
-      test_outputs = model(X_test)
-      test_loss = train_dict['loss_mp'] * criterion(test_outputs, y_test)
-      _, test_predictions = torch.max(test_outputs.data, 1)  # Convert probabilities to 0/1 predictions
-      test_error = torch.mean((test_predictions != y_test).float().float())
+          test_outputs = model(X_test)
+          test_loss = train_dict['loss_mp'] * criterion(test_outputs, y_test)
+          _, test_predictions = torch.max(test_outputs.data, 1)
+          test_error = torch.mean((test_predictions != y_test).float())
 
-      val_outputs = model(X_val)
-      val_loss = train_dict['loss_mp'] * criterion(val_outputs, y_val)
-      _, val_predictions = torch.max(val_outputs.data, 1)  # Convert probabilities to 0/1 predictions
-      val_error = torch.mean((val_predictions != y_val).float().float())
+          val_outputs = model(X_val)
+          val_loss = train_dict['loss_mp'] * criterion(val_outputs, y_val)
+          _, val_predictions = torch.max(val_outputs.data, 1)
+          val_error = torch.mean((val_predictions != y_val).float())
+      model.train()
 
       ################## Append Metrics ###############
 
@@ -380,30 +384,33 @@ def train_model_loop(model,
 
       if use_early_stopping:
 
-        # Average loss for this epoch
-        running_loss += loss.item()
-        epoch_loss = running_loss
+        # Monitor VALIDATION loss for early stopping (not training loss)
+        current_val_loss = val_loss.item()
 
         # Check for improvement
-        if best_loss - epoch_loss > min_loss_change:
+        if best_loss - current_val_loss > min_loss_change:
             no_improve_epochs = 0
-            best_loss = epoch_loss
+            best_loss = current_val_loss
         else:
             no_improve_epochs += 1
 
         # Early stopping no-improvement check
         if no_improve_epochs >= no_improve_threshold:
-          print(f'Early stopping (case-1) triggered at epoch {epoch + 1} with loss {epoch_loss:.4f} and error {train_error.item():.4f}')
+          print(f'Early stopping (case-1) triggered at epoch {epoch + 1} with val_loss {current_val_loss:.4f} and train_error {train_error.item():.4f}')
           break
 
         # Early stopping low error check
         if train_error.item() <= 0.00001:
-          print(f'Early stopping (case-2) triggered at epoch {epoch + 1} with loss {epoch_loss:.4f} and error {train_error.item():.4f}')
+          print(f'Early stopping (case-2) triggered at epoch {epoch + 1} with val_loss {current_val_loss:.4f} and train_error {train_error.item():.4f}')
           break
 
       # # Print loss every 10 epochs
       # if (epoch+1) % 100 == 0:
       #     print(f'Epoch [{epoch+1}/{epochs}], Loss: {loss.item():.4f}, 0-1 Error: {train_error.item():.4f}')
+
+      # Step the learning rate scheduler if provided
+      if scheduler is not None:
+          scheduler.step()
 
       # Update tqdm bar
       pbar.update(1)
@@ -441,7 +448,8 @@ def train_model(model, epochs, use_early_stopping, use_gpu, train_dict, inputs, 
     }
 
   # Loss function and optimizer
-  criterion = nn.CrossEntropyLoss()
+  label_smoothing = train_dict.get('label_smoothing', 0.0)
+  criterion = nn.CrossEntropyLoss(label_smoothing=label_smoothing)
 
   if train_dict['optimizer'] == 'sgd':
      optimizer = optim.SGD(model.parameters(),
@@ -468,19 +476,30 @@ def train_model(model, epochs, use_early_stopping, use_gpu, train_dict, inputs, 
   # Move model to device
   model.to(device)
 
+  # Learning rate scheduler (optional, configured via train_dict)
+  scheduler = None
+  scheduler_type = train_dict.get('scheduler', None)
+  if scheduler_type == 'cosine':
+      scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
+  elif scheduler_type == 'step':
+      scheduler = optim.lr_scheduler.StepLR(optimizer,
+                                             step_size=train_dict.get('scheduler_step_size', 100),
+                                             gamma=train_dict.get('scheduler_gamma', 0.5))
+
   # Training loop
-  train_losses, test_losses, val_losses, train_errors, test_errors, val_errors = train_model_loop(model, 
-                                                                                                  optimizer, 
-                                                                                                  criterion, 
-                                                                                                  train_dict, 
-                                                                                                  X_train, 
-                                                                                                  y_train, 
-                                                                                                  X_test, 
-                                                                                                  y_test, 
-                                                                                                  X_val, 
-                                                                                                  y_val, 
-                                                                                                  epochs, 
-                                                                                                  use_early_stopping)
+  train_losses, test_losses, val_losses, train_errors, test_errors, val_errors = train_model_loop(model,
+                                                                                                  optimizer,
+                                                                                                  criterion,
+                                                                                                  train_dict,
+                                                                                                  X_train,
+                                                                                                  y_train,
+                                                                                                  X_test,
+                                                                                                  y_test,
+                                                                                                  X_val,
+                                                                                                  y_val,
+                                                                                                  epochs,
+                                                                                                  use_early_stopping,
+                                                                                                  scheduler=scheduler)
   
   # Plot and return trained model
   plot_metrics(train_losses, test_losses, val_losses, train_errors, test_errors, val_errors, save_path=save_path)
