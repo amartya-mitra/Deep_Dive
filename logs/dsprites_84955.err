@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "/mnt/home/amitra/Deep_Dive/data/toy/dsprites/train_dsprites.py", line 22, in <module>
+    from utils.lib import *
+  File "/mnt/home/amitra/Deep_Dive/data/toy/../../utils/lib.py", line 9, in <module>
+    import seaborn as sns
+ModuleNotFoundError: No module named 'seaborn'

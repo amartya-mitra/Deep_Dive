@@ -15,8 +15,11 @@ import wandb
 from tqdm import tqdm
 from scipy.stats import ortho_group
 from copy import deepcopy
-from functorch import make_functional, vmap, jacrev
-# from torch.func import jacrev, functional_call
+try:
+    from functorch import make_functional, vmap, jacrev
+except ImportError:
+    from torch.func import functional_call, vmap, jacrev
+    from torch._functorch.eager_transforms import make_functional
 
 import sys
 from IPython.core import ultratb

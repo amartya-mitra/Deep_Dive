@@ -209,7 +209,7 @@ def run_experiment():
         device = torch.device('cpu')
     print(f"Running on device: {device}", flush=True)
     depths = [3, 4, 5, 6, 7, 8]
-    hidden_dim = 64
+    hidden_dim = 1024
     input_dim = 4096
     num_classes = 2
     
@@ -219,13 +219,21 @@ def run_experiment():
     id_accuracies = []
     
     figs_dir = os.path.join(root_dir, 'figs/dsprites')
-    os.makedirs(figs_dir, exist_ok=True)
+    dirs = {
+        'cka':            os.path.join(figs_dir, 'cka'),
+        'probe':          os.path.join(figs_dir, 'probe'),
+        'inter_layer_cka': os.path.join(figs_dir, 'inter_layer_cka'),
+        'metrics':        os.path.join(figs_dir, 'metrics'),
+        'summary':        os.path.join(figs_dir, 'summary'),
+    }
+    for d in dirs.values():
+        os.makedirs(d, exist_ok=True)
     
     # 3. Training Loop
     for depth in depths:
         print(f"\nTraining Depth {depth}...", flush=True)
         
-        model = Classifier(input_dim, depth, hidden_dim, num_classes, 'relu', dropout=0.2)
+        model = Classifier(input_dim, depth, hidden_dim, num_classes, 'relu', dropout=0.0)
 
         train_dict = {
             'epochs': 1500,
@@ -237,16 +245,16 @@ def run_experiment():
             'loss_mp': 1,
             'weight_decay': 1e-4,
             'batch_size': 64,
-            'label_smoothing': 0.1,
+            'label_smoothing': 0.0,
             'scheduler': 'cosine',
             'wandb': False
         }
         
         # Train
         # Pass use_gpu=True generically, misc.py handles MPS/CUDA
-        model = train_model(model, train_dict['epochs'], True, True, 
+        model = train_model(model, train_dict['epochs'], True, True,
                             train_dict, X_train, y_train, seed=42,
-                            save_path=os.path.join(figs_dir, f'metrics_depth_{depth}.png'))
+                            save_path=os.path.join(dirs['metrics'], f'metrics_depth_{depth}.png'))
 
         
         # Evaluate
@@ -283,9 +291,9 @@ def run_experiment():
         # Or ID? Usually we inspect representations on the validation set.
         # Let's use OOD set (balanced) to check representation quality.
         
-        cka_results = latent_CKA_analysis(model, X_ood, lv_ood, latent_indices, 
-                                          True, 
-                                          save_path=os.path.join(figs_dir, f'cka_depth_{depth}.png'))
+        cka_results = latent_CKA_analysis(model, X_ood, lv_ood, latent_indices,
+                                          True,
+                                          save_path=os.path.join(dirs['cka'], f'cka_depth_{depth}.png'))
         
         # Find peak depth for Core
         core_cka = cka_results['Core']
@@ -305,14 +313,14 @@ def run_experiment():
             'Core Bit':     6,
             'Spurious Bit': 7,
         }
-        linear_probe_analysis(model, X_ood, lc_ood, probe_indices, 
+        linear_probe_analysis(model, X_ood, lc_ood, probe_indices,
                               torch.cuda.is_available(),
-                              save_path=os.path.join(figs_dir, f'probe_depth_{depth}.png'))
+                              save_path=os.path.join(dirs['probe'], f'probe_depth_{depth}.png'))
 
         # Inter-Layer CKA
-        inter_layer_cka_analysis(model, X_ood, 
+        inter_layer_cka_analysis(model, X_ood,
                                  torch.cuda.is_available(),
-                                 save_path=os.path.join(figs_dir, f'inter_layer_cka_depth_{depth}.png'))
+                                 save_path=os.path.join(dirs['inter_layer_cka'], f'inter_layer_cka_depth_{depth}.png'))
 
 
     # 4. Summary Plots
@@ -327,7 +335,7 @@ def run_experiment():
     plt.title('ID vs OOD Accuracy across Depths')
     plt.legend()
     plt.grid(True)
-    plt.savefig(os.path.join(figs_dir, 'id_vs_ood_acc.png'))
+    plt.savefig(os.path.join(dirs['summary'], 'id_vs_ood_acc.png'))
     
     # Peak CKA Layer vs Model Depth
     plt.figure()
@@ -339,7 +347,7 @@ def run_experiment():
     plt.title('Location of Extractor-Tunnel Boundary')
     plt.legend()
     plt.grid(True)
-    plt.savefig(os.path.join(figs_dir, 'peak_layer_trend.png'))
+    plt.savefig(os.path.join(dirs['summary'], 'peak_layer_trend.png'))
     
     print("Experiment Complete.")
 
