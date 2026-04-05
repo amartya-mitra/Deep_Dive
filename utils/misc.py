@@ -660,6 +660,68 @@ def get_rank(A, hard=False):
         # soft_rank = entropy.item()
         return soft_rank
 
+def layer_rep_rank_analysis(model, input_data, use_gpu, save_path=None):
+    """
+    Compute the soft rank of intermediate layer representations.
+
+    For each layer (including the input), centers the activation matrix,
+    computes its covariance, and derives soft rank as exp(Shannon entropy
+    of normalised singular values).
+
+    Args:
+        model:      Trained PyTorch model
+        input_data: Input tensor (N, D)
+        use_gpu:    Boolean
+        save_path:  Path to save per-depth rank plot (optional)
+
+    Returns:
+        layer_ranks: List of soft-rank values, one per layer (input + hidden layers)
+    """
+    if use_gpu:
+        if torch.cuda.is_available():
+            device = torch.device('cuda')
+        elif torch.backends.mps.is_available():
+            device = torch.device('mps')
+        else:
+            device = torch.device('cpu')
+    else:
+        device = torch.device('cpu')
+
+    model = model.to(device)
+    input_data = input_data.to(device)
+
+    layer_outputs = get_all_layer_outputs(model, input_data)
+
+    # Include the raw input as layer 0
+    all_reps = [input_data] + list(layer_outputs.values())
+
+    layer_ranks = []
+    for rep in all_reps:
+        rep = rep.detach().float()
+        centered = rep - rep.mean(dim=0, keepdim=True)
+        cov = torch.matmul(centered.T, centered) / max(centered.shape[0] - 1, 1)
+        _, sv, _ = torch.svd(cov)
+        sv = sv / sv.sum()
+        # Guard against log(0) from numerical zero singular values
+        sv = sv[sv > 0]
+        entropy = -(sv * torch.log(sv)).sum()
+        layer_ranks.append(torch.exp(entropy).item())
+
+    if save_path:
+        fig, ax = plt.subplots(figsize=(7, 5))
+        ax.plot(range(len(layer_ranks)), layer_ranks, marker='o', color='steelblue')
+        ax.set_xlabel('Layer Depth')
+        ax.set_ylabel('Soft Rank (exp H)')
+        depth = len(layer_ranks) - 1
+        ax.set_title(f'Representation Rank vs. Layer (depth={depth})')
+        ax.grid(True)
+        plt.tight_layout()
+        plt.savefig(save_path)
+        plt.close(fig)
+
+    return layer_ranks
+
+
 def latent_CKA_analysis(model, input_data, latents, latent_indices_dict, use_gpu, save_path=None):
     """
     Compute CKA between each layer output and specific groups of latent factors.

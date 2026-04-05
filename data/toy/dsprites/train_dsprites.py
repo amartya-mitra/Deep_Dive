@@ -10,7 +10,6 @@ import matplotlib.pyplot as plt
 plt.show = lambda: None
 
 from collections import defaultdict
-import datetime
 
 # Add paths for imports
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -71,17 +70,23 @@ def filter_dataset_for_bias(X, latents_classes, latents_values, core_indices, sp
     n_misaligned = len(misaligned_indices)
     
     if p_correlation >= 0.5:
-        # We need to drop misaligned
+        # Drop misaligned to inflate alignment
         n_keep_mis = int(n_aligned * (1 - p_correlation) / p_correlation)
         if n_keep_mis < n_misaligned:
             keep_mis_indices = np.random.choice(misaligned_indices, n_keep_mis, replace=False)
             final_indices = np.concatenate([aligned_indices, keep_mis_indices])
         else:
-            final_indices = np.concatenate([aligned_indices, misaligned_indices]) # Can't achieve target, keep all
+            final_indices = np.concatenate([aligned_indices, misaligned_indices])
     else:
-        # Want negative correlation?
-        # Similar logic.
-        final_indices = indices
+        # Drop aligned to inflate mis-alignment (anti-correlation)
+        # P(aligned) = p  =>  n_keep_aln / (n_keep_aln + n_misaligned) = p
+        # n_keep_aln = n_misaligned * p / (1 - p)
+        n_keep_aln = int(n_misaligned * p_correlation / (1 - p_correlation))
+        if n_keep_aln < n_aligned:
+            keep_aln_indices = np.random.choice(aligned_indices, n_keep_aln, replace=False)
+            final_indices = np.concatenate([keep_aln_indices, misaligned_indices])
+        else:
+            final_indices = np.concatenate([aligned_indices, misaligned_indices])
         
     np.random.shuffle(final_indices)
 
@@ -134,7 +139,7 @@ def run_experiment():
     # Filter for Training Set (High Bias)
     print("Constructing Biased Training Set (p=0.9)...")
     X_train, y_train, lc_train, lv_train = filter_dataset_for_bias(
-        X_raw, lc_raw, lv_raw, [1, 2], [4, 5], 0.9, logic='AND'
+        X_raw, lc_raw, lv_raw, [1, 2], [4, 5], 0.6, logic='AND'
     )
     print(f"Training Set Size: {len(X_train)}", flush=True)
     
@@ -217,14 +222,16 @@ def run_experiment():
     peak_cka_depths = []
     ood_accuracies = []
     id_accuracies = []
+    all_rank_profiles = {}  # depth -> list of soft ranks per layer
     
     figs_dir = os.path.join(root_dir, 'figs/dsprites')
     dirs = {
-        'cka':            os.path.join(figs_dir, 'cka'),
-        'probe':          os.path.join(figs_dir, 'probe'),
+        'cka':             os.path.join(figs_dir, 'cka'),
+        'probe':           os.path.join(figs_dir, 'probe'),
         'inter_layer_cka': os.path.join(figs_dir, 'inter_layer_cka'),
-        'metrics':        os.path.join(figs_dir, 'metrics'),
-        'summary':        os.path.join(figs_dir, 'summary'),
+        'metrics':         os.path.join(figs_dir, 'metrics'),
+        'rank':            os.path.join(figs_dir, 'rank'),
+        'summary':         os.path.join(figs_dir, 'summary'),
     }
     for d in dirs.values():
         os.makedirs(d, exist_ok=True)
@@ -322,10 +329,29 @@ def run_experiment():
                                  torch.cuda.is_available(),
                                  save_path=os.path.join(dirs['inter_layer_cka'], f'inter_layer_cka_depth_{depth}.png'))
 
+        # Representation Rank
+        rank_profile = layer_rep_rank_analysis(model, X_ood,
+                                               torch.cuda.is_available(),
+                                               save_path=os.path.join(dirs['rank'], f'rank_depth_{depth}.png'))
+        all_rank_profiles[depth] = rank_profile
+
 
     # 4. Summary Plots
     print("\ngenerating summary plots...")
-    
+
+    # Rank profiles overlaid across all depths
+    fig, ax = plt.subplots(figsize=(9, 6))
+    for depth, ranks in all_rank_profiles.items():
+        ax.plot(range(len(ranks)), ranks, marker='o', label=f'depth={depth}')
+    ax.set_xlabel('Layer Index')
+    ax.set_ylabel('Soft Rank (exp H)')
+    ax.set_title('Representation Rank vs. Layer (all depths)')
+    ax.legend()
+    ax.grid(True)
+    plt.tight_layout()
+    plt.savefig(os.path.join(dirs['summary'], 'rank_all_depths.png'))
+    plt.close(fig)
+
     # ID vs OOD Accuracy
     plt.figure()
     plt.plot(depths, id_accuracies, label='ID Accuracy', marker='o')
