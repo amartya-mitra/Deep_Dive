@@ -45,6 +45,86 @@ def load_dsprites(path, n_samples=5000, seed=42):
     
     return X_train, X_test, lv_train, lv_test, lc_train, lc_test
 
+def generate_labels_6class(latents_classes, latents_values):
+    """
+    Generate 6-class labels from Shape (3 values) x Scale bin (2 values).
+
+    Class layout:
+        class_id = shape * 2 + scale_bin
+        0: Square  + Small    3: Ellipse + Large
+        1: Square  + Large    4: Heart   + Small
+        2: Ellipse + Small    5: Heart   + Large
+
+    Args:
+        latents_classes : LongTensor (N, 6) — integer latent class indices
+        latents_values  : FloatTensor (N, 6) — continuous latent values
+
+    Returns:
+        labels    : LongTensor (N,), values in {0,1,2,3,4,5}
+        scale_bin : LongTensor (N,), values in {0,1}  (0=small, 1=large)
+    """
+    scale_values = latents_values[:, 2]
+    scale_bin = (scale_values > scale_values.median()).long()
+    shape = latents_classes[:, 1]          # 0=Square, 1=Ellipse, 2=Heart
+    labels = shape * 2 + scale_bin
+    return labels, scale_bin
+
+
+def filter_dataset_for_bias_6class(
+    X, labels, scale_bin, latents_classes, latents_values,
+    p_correlation, use_spurious, seed=42
+):
+    """
+    Filter a 6-class dSprites split to inject spurious correlation.
+
+    The spurious feature (PosX AND PosY > median) is aligned with scale_bin.
+    Misaligned examples are undersampled until P(aligned) = p_correlation.
+    No class-balance correction is applied (6-class labels are balanced by
+    construction under uniform dSprites sampling).
+
+    Args:
+        X               : FloatTensor (N, input_dim)
+        labels          : LongTensor  (N,) — 6-class labels from generate_labels_6class
+        scale_bin       : LongTensor  (N,) — binary scale component (alignment target)
+        latents_classes : LongTensor  (N, 6)
+        latents_values  : FloatTensor (N, 6)
+        p_correlation   : float in (0.5, 1.0] — desired P(spurious aligned with scale_bin)
+        use_spurious    : bool — master toggle; if False, return inputs unchanged
+        seed            : int
+
+    Returns:
+        X_filtered, labels_filtered, latents_classes_filtered, latents_values_filtered
+    """
+    if not use_spurious:
+        return X, labels, latents_classes, latents_values
+
+    np.random.seed(seed)
+
+    pos_x = latents_values[:, 4]
+    pos_y = latents_values[:, 5]
+    spurious_bit = ((pos_x > pos_x.median()).long() +
+                    (pos_y > pos_y.median()).long() == 2).long()
+
+    aligned = (scale_bin == spurious_bit).cpu().numpy()
+    indices = np.arange(len(labels))
+    aligned_indices    = indices[aligned]
+    misaligned_indices = indices[~aligned]
+
+    n_aligned    = len(aligned_indices)
+    n_misaligned = len(misaligned_indices)
+
+    n_keep_mis = int(n_aligned * (1 - p_correlation) / p_correlation)
+    if n_keep_mis < n_misaligned:
+        keep_mis = np.random.choice(misaligned_indices, n_keep_mis, replace=False)
+        final_indices = np.concatenate([aligned_indices, keep_mis])
+    else:
+        final_indices = np.concatenate([aligned_indices, misaligned_indices])
+
+    np.random.shuffle(final_indices)
+    return (X[final_indices], labels[final_indices],
+            latents_classes[final_indices], latents_values[final_indices])
+
+
 def generate_labels(latents_classes, latents_values,
                     core_indices=[1, 2],
                     spurious_indices=[4, 5],

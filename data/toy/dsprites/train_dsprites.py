@@ -1,5 +1,6 @@
 import sys
 import os
+import argparse
 import numpy as np
 import torch
 import torch.nn as nn
@@ -19,10 +20,12 @@ sys.path.append(root_dir)
 sys.path.append(os.path.join(root_dir, 'utils'))
 
 from utils.lib import *
-from utils.toy_model import *
+from utils.toy_model import Classifier, CNNClassifier
 from utils.misc import *
 from utils.plot import *
-from data.toy.dsprites.dsprites_data import load_dsprites, generate_labels
+from data.toy.dsprites.dsprites_data import (load_dsprites, generate_labels,
+                                              generate_labels_6class,
+                                              filter_dataset_for_bias_6class)
 
 def filter_dataset_for_bias(X, latents_classes, latents_values, core_indices, spurious_indices, p_correlation, seed=42, logic='OR'):
     """
@@ -31,46 +34,32 @@ def filter_dataset_for_bias(X, latents_classes, latents_values, core_indices, sp
     Since Core and Spurious are naturally independent in dSprites, we must undersample the 'misaligned' examples.
     """
     np.random.seed(seed)
-    
+
     # 1. Determine Core Labels (Target Y)
-    # Using the logic from generate_labels but just getting the core part
-    # We call generate_labels but we only care about core_labels
     _, core_labels = generate_labels(latents_classes, latents_values, core_indices, spurious_indices, 1.0, seed, logic=logic)
     y = core_labels # This is the TRUE label
-    
+
     # 2. Determine Spurious Feature 'Bit'
-    # PosX/PosY > Median -> 1, else 0.
     pos_x = latents_values[:, spurious_indices[0]]
     pos_y = latents_values[:, spurious_indices[1]]
-    
+
     if logic == 'AND':
-         # Spurious AND: Both must be > Median
          spurious_bit = ((pos_x > pos_x.median()).long() + (pos_y > pos_y.median()).long() == 2).long()
     else:
-         # Spurious OR
          spurious_bit = ((pos_x > pos_x.median()).long() + (pos_y > pos_y.median()).long() >= 1).long()
-    
+
     # 3. Align Check
     aligned = (y == spurious_bit)
-    
+
     # 4. Filter
-    # We want P(aligned) = p_correlation
-    # Currently P(aligned) ~ 0.5 (random)
-    # Let N_aligned be count of aligned. N_misaligned be count of misaligned.
-    # We want N_aligned / (N_aligned + N_misaligned_keep) = p
-    # N_aligned = p * N_aligned + p * N_misaligned_keep
-    # N_aligned * (1-p) = p * N_misaligned_keep
-    # N_misaligned_keep = N_aligned * (1-p)/p
-    
     indices = np.arange(len(y))
     aligned_indices = indices[aligned]
     misaligned_indices = indices[~aligned]
-    
+
     n_aligned = len(aligned_indices)
     n_misaligned = len(misaligned_indices)
-    
+
     if p_correlation >= 0.5:
-        # Drop misaligned to inflate alignment
         n_keep_mis = int(n_aligned * (1 - p_correlation) / p_correlation)
         if n_keep_mis < n_misaligned:
             keep_mis_indices = np.random.choice(misaligned_indices, n_keep_mis, replace=False)
@@ -78,134 +67,112 @@ def filter_dataset_for_bias(X, latents_classes, latents_values, core_indices, sp
         else:
             final_indices = np.concatenate([aligned_indices, misaligned_indices])
     else:
-        # Drop aligned to inflate mis-alignment (anti-correlation)
-        # P(aligned) = p  =>  n_keep_aln / (n_keep_aln + n_misaligned) = p
-        # n_keep_aln = n_misaligned * p / (1 - p)
         n_keep_aln = int(n_misaligned * p_correlation / (1 - p_correlation))
         if n_keep_aln < n_aligned:
             keep_aln_indices = np.random.choice(aligned_indices, n_keep_aln, replace=False)
             final_indices = np.concatenate([keep_aln_indices, misaligned_indices])
         else:
             final_indices = np.concatenate([aligned_indices, misaligned_indices])
-        
+
     np.random.shuffle(final_indices)
 
-    # 5. Undersample for Class Balance (if logic is AND) 
-    # Because AND logic creates rare positives (~25%), we undersample negatives to 50/50.
     if logic == 'AND':
         y_filtered = y[final_indices]
         pos_subset_indices = np.where(y_filtered == 1)[0]
         neg_subset_indices = np.where(y_filtered == 0)[0]
-        
+
         n_pos = len(pos_subset_indices)
         n_neg = len(neg_subset_indices)
-        
+
         if n_neg > n_pos:
-            # Undersample negatives to match positives
             keep_neg_indices = np.random.choice(neg_subset_indices, n_pos, replace=False)
             balanced_indices = np.concatenate([pos_subset_indices, keep_neg_indices])
-            # Map back to final_indices
             final_indices = final_indices[balanced_indices]
             np.random.shuffle(final_indices)
-    
-    return X[final_indices], y[final_indices], latents_classes[final_indices], latents_values[final_indices]
-    
 
-def run_experiment():
-    print("Starting dSprites Latent Recovery Experiment...", flush=True)
-    
-    # 1. Setup Data
+    return X[final_indices], y[final_indices], latents_classes[final_indices], latents_values[final_indices]
+
+
+def run_experiment(depth=None):
+    """
+    Run dSprites 6-class experiment.
+
+    Args:
+        depth : int or None — if given, trains only that depth; if None, trains all depths
+                              sequentially and generates summary plots.
+    """
+    print("Starting dSprites 6-Class Latent Recovery Experiment...", flush=True)
+
+    # ------------------------------------------------------------------ #
+    # Config                                                               #
+    # ------------------------------------------------------------------ #
+    USE_SPURIOUS    = True   # Set False to disable spurious correlation
+    P_CORRELATION   = 0.7   # Only used when USE_SPURIOUS=True
+    USE_CNN_ENCODER = True   # Set False to revert to plain MLP on flat pixels
+    EMBED_DIM       = 128    # CNN encoder output dimension (input to MLP)
+
+    # ------------------------------------------------------------------ #
+    # 1. Data                                                              #
+    # ------------------------------------------------------------------ #
     dsprites_path = os.path.join(parent_dir, 'dsprites/dsprites_ndarray_co1sh3sc6or40x32y32_64x64.npz')
-    # Load more samples to allow for filtering
+
+    # Training pool (all 3 shapes kept)
     X_raw, _, lv_raw, _, lc_raw, _ = load_dsprites(dsprites_path, n_samples=50000)
-    
-    # Concatenate back to split manually after filtering
-    # Actually load_dsprites splits 80/20. Let's just use the raw returns if we can, or combine.
-    # load_dsprites returns tensors.
-    
-    # Re-combine for filtering
-    # note: load_dsprites does a split. I'll just load again or combine.
-    # The function returns X_train, X_test...
-    # I'll combine them.
-    # But wait, I can just not use the split and assume `X_raw` (train) is typically large enough.
-    
-    # EXP 2: Option 2 (Drop Ellipses + AND Logic)
-    print("Experiment 2: Dropping Ellipses (Class 1) and using AND logic...", flush=True)
-    keep_mask = (lc_raw[:, 1] != 1) # Keep 0(Square) and 2(Heart)
-    X_raw = X_raw[keep_mask]
-    lv_raw = lv_raw[keep_mask]
-    lc_raw = lc_raw[keep_mask]
-    
-    # Filter for Training Set (High Bias)
-    print("Constructing Biased Training Set (p=0.9)...")
-    X_train, y_train, lc_train, lv_train = filter_dataset_for_bias(
-        X_raw, lc_raw, lv_raw, [1, 2], [4, 5], 0.6, logic='AND'
+    labels_raw, scale_bin_raw = generate_labels_6class(lc_raw, lv_raw)
+
+    print("Constructing Training Set...", flush=True)
+    X_train, y_train, lc_train, lv_train = filter_dataset_for_bias_6class(
+        X_raw, labels_raw, scale_bin_raw, lc_raw, lv_raw,
+        P_CORRELATION, use_spurious=USE_SPURIOUS
     )
     print(f"Training Set Size: {len(X_train)}", flush=True)
-    
-    # Check Class Balance
-    n_pos = (y_train == 1).sum().item()
-    n_neg = (y_train == 0).sum().item()
-    print(f"Training Class Balance: Pos={n_pos} ({n_pos/len(y_train):.2%}), Neg={n_neg} ({n_neg/len(y_train):.2%})", flush=True)
-    
-    # Construct OOD Test Set (No Bias, p=0.5)
-    # Use the 'Test' part from load_dsprites (which comes from the remaining pool)
-    # But load_dsprites returns split data from n_samples.
-    # To get distinct OOD data, we should reload or use the other split.
-    # Let's use the 'Test' returned by load_dsprites as the pool for OOD.
-    _, X_test_pool, _, lv_test_pool, _, lc_test_pool = load_dsprites(dsprites_path, n_samples=5000, seed=999) # Different seed
+    for c in range(6):
+        n = (y_train == c).sum().item()
+        print(f"  Class {c}: {n} ({n/len(y_train):.1%})", flush=True)
 
-    # Filter ellipses from test pool (must match training pool for AND logic)
-    keep_mask_test = (lc_test_pool[:, 1] != 1)
-    X_test_pool = X_test_pool[keep_mask_test]
-    lv_test_pool = lv_test_pool[keep_mask_test]
-    lc_test_pool = lc_test_pool[keep_mask_test]
-    
-    print("Constructing OOD Test Set (p=0.5)...")
-    # p=0.5 means do nothing (natural distribution), but let's filter to be sure or just take it.
-    # Natural distribution is independent, so p=0.5.
-    # However, to compare accuracy, we might want to balance class 0 and 1.
-    X_ood, y_ood, lc_ood, lv_ood = filter_dataset_for_bias(
-        X_test_pool, lc_test_pool, lv_test_pool, [1, 2], [4, 5], 0.5, logic='AND'
+    # Test pool (separate seed)
+    _, X_test_pool, _, lv_test_pool, _, lc_test_pool = load_dsprites(
+        dsprites_path, n_samples=5000, seed=999
     )
-    print(f"OOD Test Set Size: {len(X_ood)}")
-    
-    # ID Test Set (p=0.9 like train)
-    X_id, y_id, lc_id, lv_id = filter_dataset_for_bias(
-        X_test_pool, lc_test_pool, lv_test_pool, [1, 2], [4, 5], 0.9, logic='AND'
+    labels_test, scale_bin_test = generate_labels_6class(lc_test_pool, lv_test_pool)
+
+    # OOD: no spurious correlation (natural distribution)
+    print("Constructing OOD Test Set...", flush=True)
+    X_ood, y_ood, lc_ood, lv_ood = filter_dataset_for_bias_6class(
+        X_test_pool, labels_test, scale_bin_test, lc_test_pool, lv_test_pool,
+        P_CORRELATION, use_spurious=False
     )
-    print(f"ID Test Set Size: {len(X_id)}")
-    
-    # Compute derived binary probe targets for the OOD set.
-    # These give cardinality-controlled (2-class) probes that are directly
-    # comparable to each other, avoiding the 32-class vs 2-class confound
-    # present in the raw PosX/PosY vs Shape probes.
+    print(f"OOD Test Set Size: {len(X_ood)}", flush=True)
 
-    # Core bit: (Shape == Heart) AND (Scale > median)  →  the actual decision-relevant signal
-    shape_binary_ood  = (lc_ood[:, 1] == 2).long()
-    scale_binary_ood  = (lv_ood[:, 2] > lv_ood[:, 2].median()).long()
-    core_bit_ood      = (shape_binary_ood + scale_binary_ood == 2).long()   # 1 iff both positive
+    # ID: same spurious correlation as training
+    print("Constructing ID Test Set...", flush=True)
+    X_id, y_id, lc_id, lv_id = filter_dataset_for_bias_6class(
+        X_test_pool, labels_test, scale_bin_test, lc_test_pool, lv_test_pool,
+        P_CORRELATION, use_spurious=USE_SPURIOUS
+    )
+    print(f"ID Test Set Size: {len(X_id)}", flush=True)
 
-    # Spurious bit: (PosX > median) AND (PosY > median)  →  the confound signal
-    pos_x_ood         = lv_ood[:, 4]
-    pos_y_ood         = lv_ood[:, 5]
-    spurious_bit_ood  = ((pos_x_ood > pos_x_ood.median()).long() +
-                         (pos_y_ood > pos_y_ood.median()).long() == 2).long()
-
-    # Append as columns 6 and 7 of lc_ood so linear_probe_analysis can index them normally
+    # Derived binary probe targets for OOD set
+    scale_bin_ood    = (lv_ood[:, 2] > lv_ood[:, 2].median()).long()
+    pos_x_ood        = lv_ood[:, 4]
+    pos_y_ood        = lv_ood[:, 5]
+    spurious_bit_ood = ((pos_x_ood > pos_x_ood.median()).long() +
+                        (pos_y_ood > pos_y_ood.median()).long() == 2).long()
     lc_ood = torch.cat([lc_ood,
-                        core_bit_ood.unsqueeze(1),
+                        scale_bin_ood.unsqueeze(1),
                         spurious_bit_ood.unsqueeze(1)], dim=1)
 
-    # Normalize inputs (zero mean, unit variance) using training set statistics
+    # Normalise using training statistics
     train_mean = X_train.mean(dim=0)
-    train_std = X_train.std(dim=0)
-    train_std[train_std == 0] = 1.0  # Avoid division by zero for constant pixels
+    train_std  = X_train.std(dim=0)
+    train_std[train_std == 0] = 1.0
     X_train = (X_train - train_mean) / train_std
-    X_ood = (X_ood - train_mean) / train_std
-    X_id = (X_id - train_mean) / train_std
+    X_ood   = (X_ood   - train_mean) / train_std
+    X_id    = (X_id    - train_mean) / train_std
 
-    # 2. Config
+    # ------------------------------------------------------------------ #
+    # 2. Config                                                            #
+    # ------------------------------------------------------------------ #
     if torch.cuda.is_available():
         device = torch.device('cuda')
     elif torch.backends.mps.is_available():
@@ -213,17 +180,13 @@ def run_experiment():
     else:
         device = torch.device('cpu')
     print(f"Running on device: {device}", flush=True)
-    depths = [3, 4, 5, 6, 7, 8]
-    hidden_dim = 1024
-    input_dim = 4096
-    num_classes = 2
-    
-    # Metrics
-    peak_cka_depths = []
-    ood_accuracies = []
-    id_accuracies = []
-    all_rank_profiles = {}  # depth -> list of soft ranks per layer
-    
+
+    all_depths  = [3, 4, 5, 6, 7, 8]
+    depths_to_run = [depth] if depth is not None else all_depths
+    hidden_dim  = 1024
+    num_classes = 6
+    input_dim   = EMBED_DIM if USE_CNN_ENCODER else 4096
+
     figs_dir = os.path.join(root_dir, 'figs/dsprites')
     dirs = {
         'cka':             os.path.join(figs_dir, 'cka'),
@@ -235,147 +198,213 @@ def run_experiment():
     }
     for d in dirs.values():
         os.makedirs(d, exist_ok=True)
-    
-    # 3. Training Loop
-    for depth in depths:
-        print(f"\nTraining Depth {depth}...", flush=True)
-        
-        model = Classifier(input_dim, depth, hidden_dim, num_classes, 'relu', dropout=0.0)
+
+    results_save_dir = os.path.join(root_dir, 'logs/dsprites')
+    os.makedirs(results_save_dir, exist_ok=True)
+
+    # Accumulators (used when running all depths sequentially)
+    peak_cka_depths   = []
+    ood_accuracies    = []
+    id_accuracies     = []
+    all_rank_profiles = {}
+
+    # ------------------------------------------------------------------ #
+    # 3. Training Loop                                                     #
+    # ------------------------------------------------------------------ #
+    for d in depths_to_run:
+        print(f"\nTraining Depth {d}...", flush=True)
+
+        if USE_CNN_ENCODER:
+            model = CNNClassifier(
+                embed_dim=EMBED_DIM,
+                num_hidden_layers=d,
+                hidden_layer_width=hidden_dim,
+                output_dim=num_classes,
+                activation_func='relu',
+                dropout=0.0,
+            )
+        else:
+            model = Classifier(input_dim, d, hidden_dim, num_classes, 'relu', dropout=0.0)
 
         train_dict = {
-            'epochs': 1500,
-            'lr': 0.005,
-            'momentum': 0.9,
-            'optimizer': 'sgd',
-            'min_loss_change': 0.0001,
+            'epochs':              1500,
+            'lr':                  0.005,
+            'momentum':            0.9,
+            'optimizer':           'sgd',
+            'min_loss_change':     0.0001,
             'no_improve_threshold': 50,
-            'loss_mp': 1,
-            'weight_decay': 1e-4,
-            'batch_size': 64,
-            'label_smoothing': 0.0,
-            'scheduler': 'cosine',
-            'wandb': False
+            'loss_mp':             1,
+            'weight_decay':        1e-4,
+            'batch_size':          64,
+            'label_smoothing':     0.0,
+            'scheduler':           'cosine',
+            'wandb':               False,
         }
-        
-        # Train
-        # Pass use_gpu=True generically, misc.py handles MPS/CUDA
+
         model = train_model(model, train_dict['epochs'], True, True,
                             train_dict, X_train, y_train, seed=42,
-                            save_path=os.path.join(dirs['metrics'], f'metrics_depth_{depth}.png'))
+                            save_path=os.path.join(dirs['metrics'], f'metrics_depth_{d}.png'))
 
-        
         # Evaluate
         with torch.no_grad():
             model.eval()
-            # ID Accuracy
-            out_id = model(X_id.to(device))
-            acc_id = (out_id.argmax(1) == y_id.to(device)).float().mean().item()
-            id_accuracies.append(acc_id)
-            
-            # OOD Accuracy
+            out_id  = model(X_id.to(device))
+            acc_id  = (out_id.argmax(1)  == y_id.to(device)).float().mean().item()
             out_ood = model(X_ood.to(device))
             acc_ood = (out_ood.argmax(1) == y_ood.to(device)).float().mean().item()
-            ood_accuracies.append(acc_ood)
-            
-        print(f"Depth {depth}: ID Acc = {acc_id:.4f}, OOD Acc = {acc_ood:.4f}", flush=True)
-        
-        # Analysis
+        id_accuracies.append(acc_id)
+        ood_accuracies.append(acc_ood)
+        print(f"Depth {d}: ID Acc = {acc_id:.4f}, OOD Acc = {acc_ood:.4f}", flush=True)
+
         # Latent CKA
-        # Define indices: Shape(1), Scale(2), PosX(4), PosY(5)
-        # Note: In dSprites, Latents are: Color, Shape, Scale, Orientation, PosX, PosY
-        # Shape(1), Scale(2) are CORE.
-        # PosX(4), PosY(5) are SPURIOUS.
-        # Orientation(3) is NOISE.
-        
         latent_indices = {
-            'All': [1, 2, 4, 5],
-            'Core': [1, 2],
+            'All':      [1, 2, 4, 5],
+            'Core':     [1, 2],
             'Spurious': [4, 5],
-            'Noise': [3]
+            'Noise':    [3],
         }
-        
-        # We use the OOD set for Analysis (to see if it extracts features cleanly without bias)
-        # Or ID? Usually we inspect representations on the validation set.
-        # Let's use OOD set (balanced) to check representation quality.
-        
         cka_results = latent_CKA_analysis(model, X_ood, lv_ood, latent_indices,
                                           True,
-                                          save_path=os.path.join(dirs['cka'], f'cka_depth_{depth}.png'))
-        
-        # Find peak depth for Core
-        core_cka = cka_results['Core']
-        peak_layer = np.argmax(core_cka)
-        peak_cka_depths.append(peak_layer)
-        
+                                          save_path=os.path.join(dirs['cka'], f'cka_depth_{d}.png'))
+        peak_cka = int(np.argmax(cka_results['Core']))
+        peak_cka_depths.append(peak_cka)
+
         # Linear Probe
-        # Probe using classes (integers).
-        # Columns 0-5: original dSprites latent classes (Color, Shape, Scale, Orientation, PosX, PosY)
-        # Column 6:    core_bit     — binary AND of Shape & Scale thresholds (2-class)
-        # Column 7:    spurious_bit — binary AND of PosX & PosY thresholds  (2-class)
         probe_indices = {
             'Shape':        1,
             'Scale':        2,
             'PosX':         4,
             'PosY':         5,
-            'Core Bit':     6,
+            'Scale Bin':    6,
             'Spurious Bit': 7,
         }
         linear_probe_analysis(model, X_ood, lc_ood, probe_indices,
                               torch.cuda.is_available(),
-                              save_path=os.path.join(dirs['probe'], f'probe_depth_{depth}.png'))
+                              save_path=os.path.join(dirs['probe'], f'probe_depth_{d}.png'))
 
         # Inter-Layer CKA
         inter_layer_cka_analysis(model, X_ood,
                                  torch.cuda.is_available(),
-                                 save_path=os.path.join(dirs['inter_layer_cka'], f'inter_layer_cka_depth_{depth}.png'))
+                                 save_path=os.path.join(dirs['inter_layer_cka'], f'inter_layer_cka_depth_{d}.png'))
 
         # Representation Rank
         rank_profile = layer_rep_rank_analysis(model, X_ood,
                                                torch.cuda.is_available(),
-                                               save_path=os.path.join(dirs['rank'], f'rank_depth_{depth}.png'))
-        all_rank_profiles[depth] = rank_profile
+                                               save_path=os.path.join(dirs['rank'], f'rank_depth_{d}.png'))
+        all_rank_profiles[d] = rank_profile
+
+        # Save numeric results for this depth (used by --summary)
+        np.savez(os.path.join(results_save_dir, f'results_depth_{d}.npz'),
+                 id_acc=np.array(acc_id),
+                 ood_acc=np.array(acc_ood),
+                 peak_cka=np.array(peak_cka),
+                 rank_profile=np.array(rank_profile))
+        print(f"Depth {d} results saved.", flush=True)
+
+    # ------------------------------------------------------------------ #
+    # 4. Summary Plots (sequential mode only)                             #
+    # ------------------------------------------------------------------ #
+    if depth is None:
+        _generate_summary(all_depths, id_accuracies, ood_accuracies,
+                          peak_cka_depths, all_rank_profiles, dirs['summary'])
+
+    print("Experiment Complete.", flush=True)
 
 
-    # 4. Summary Plots
-    print("\ngenerating summary plots...")
+def generate_summary_plots():
+    """
+    Read saved per-depth results from logs/dsprites/ and generate summary plots.
+    Run this after all parallel depth jobs have finished:
+        python data/toy/dsprites/train_dsprites.py --summary
+    """
+    all_depths = [3, 4, 5, 6, 7, 8]
+    results_save_dir = os.path.join(root_dir, 'logs/dsprites')
+
+    id_accuracies     = []
+    ood_accuracies    = []
+    peak_cka_depths   = []
+    all_rank_profiles = {}
+    depths_found      = []
+
+    for d in all_depths:
+        path = os.path.join(results_save_dir, f'results_depth_{d}.npz')
+        if not os.path.exists(path):
+            print(f"Warning: missing results for depth {d} at {path}. Skipping.", flush=True)
+            continue
+        data = np.load(path, allow_pickle=True)
+        id_accuracies.append(float(data['id_acc']))
+        ood_accuracies.append(float(data['ood_acc']))
+        peak_cka_depths.append(int(data['peak_cka']))
+        all_rank_profiles[d] = data['rank_profile'].tolist()
+        depths_found.append(d)
+
+    if not depths_found:
+        print("No saved results found. Run per-depth jobs first.", flush=True)
+        return
+
+    summary_dir = os.path.join(root_dir, 'figs/dsprites/summary')
+    os.makedirs(summary_dir, exist_ok=True)
+    _generate_summary(depths_found, id_accuracies, ood_accuracies,
+                      peak_cka_depths, all_rank_profiles, summary_dir)
+
+
+def _generate_summary(depths, id_accuracies, ood_accuracies,
+                      peak_cka_depths, all_rank_profiles, summary_dir):
+    """Generate summary plots from in-memory results."""
+    print("\nGenerating summary plots...", flush=True)
 
     # Rank profiles overlaid across all depths
     fig, ax = plt.subplots(figsize=(9, 6))
-    for depth, ranks in all_rank_profiles.items():
-        ax.plot(range(len(ranks)), ranks, marker='o', label=f'depth={depth}')
+    for d, ranks in all_rank_profiles.items():
+        ax.plot(range(len(ranks)), ranks, marker='o', label=f'depth={d}')
     ax.set_xlabel('Layer Index')
     ax.set_ylabel('Soft Rank (exp H)')
     ax.set_title('Representation Rank vs. Layer (all depths)')
     ax.legend()
     ax.grid(True)
     plt.tight_layout()
-    plt.savefig(os.path.join(dirs['summary'], 'rank_all_depths.png'))
+    plt.savefig(os.path.join(summary_dir, 'rank_all_depths.png'))
     plt.close(fig)
 
     # ID vs OOD Accuracy
-    plt.figure()
-    plt.plot(depths, id_accuracies, label='ID Accuracy', marker='o')
-    plt.plot(depths, ood_accuracies, label='OOD Accuracy', marker='s')
-    plt.xlabel('Model Depth')
-    plt.ylabel('Accuracy')
-    plt.title('ID vs OOD Accuracy across Depths')
-    plt.legend()
-    plt.grid(True)
-    plt.savefig(os.path.join(dirs['summary'], 'id_vs_ood_acc.png'))
-    
+    fig, ax = plt.subplots()
+    ax.plot(depths, id_accuracies, label='ID Accuracy', marker='o')
+    ax.plot(depths, ood_accuracies, label='OOD Accuracy', marker='s')
+    ax.set_xlabel('Model Depth')
+    ax.set_ylabel('Accuracy')
+    ax.set_title('ID vs OOD Accuracy across Depths')
+    ax.legend()
+    ax.grid(True)
+    plt.tight_layout()
+    plt.savefig(os.path.join(summary_dir, 'id_vs_ood_acc.png'))
+    plt.close(fig)
+
     # Peak CKA Layer vs Model Depth
-    plt.figure()
-    plt.plot(depths, peak_cka_depths, marker='o', label='Core CKA Peak')
-    plt.plot(depths, depths, linestyle='--', color='gray', label='Output Layer (Identity)')
-    plt.plot(depths, [d/2 for d in depths], linestyle=':', color='gray', label='Middle')
-    plt.xlabel('Model Depth')
-    plt.ylabel('Layer Index')
-    plt.title('Location of Extractor-Tunnel Boundary')
-    plt.legend()
-    plt.grid(True)
-    plt.savefig(os.path.join(dirs['summary'], 'peak_layer_trend.png'))
-    
-    print("Experiment Complete.")
+    fig, ax = plt.subplots()
+    ax.plot(depths, peak_cka_depths, marker='o', label='Core CKA Peak')
+    ax.plot(depths, depths, linestyle='--', color='gray', label='Output Layer (Identity)')
+    ax.plot(depths, [d / 2 for d in depths], linestyle=':', color='gray', label='Middle')
+    ax.set_xlabel('Model Depth')
+    ax.set_ylabel('Layer Index')
+    ax.set_title('Location of Extractor-Tunnel Boundary')
+    ax.legend()
+    ax.grid(True)
+    plt.tight_layout()
+    plt.savefig(os.path.join(summary_dir, 'peak_layer_trend.png'))
+    plt.close(fig)
+
+    print("Summary plots saved.", flush=True)
+
 
 if __name__ == "__main__":
-    run_experiment()
+    parser = argparse.ArgumentParser(description="dSprites 6-class depth experiment")
+    parser.add_argument('--depth', type=int, default=None,
+                        help='Single depth to train (3–8). Omit to run all depths sequentially.')
+    parser.add_argument('--summary', action='store_true',
+                        help='Generate summary plots from saved per-depth results (run after all jobs finish).')
+    args = parser.parse_args()
+
+    if args.summary:
+        generate_summary_plots()
+    else:
+        run_experiment(depth=args.depth)

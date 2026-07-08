@@ -100,23 +100,20 @@ def count_hidden_layers(model):
     return hidden_layers - 1  # Subtract 1 to exclude the output layer
 
 def get_all_layer_outputs(model, input_data):
-    # Dictionary to store layer outputs
     layer_outputs = {}
 
-    # Function to be called by the hook
     def hook_fn(module, input, output):
         layer_outputs[module] = output
 
-    # Register hooks on all linear layers
     hooks = []
-    for name, module in model.named_modules():
+    # Scope hooks to MLP sub-module only (CNNClassifier), else hook full model.
+    target = getattr(model, 'classifier', model)
+    for name, module in target.named_modules():
         if isinstance(module, torch.nn.Linear):
             hooks.append(module.register_forward_hook(hook_fn))
 
-    # Perform a forward pass with the input data to trigger the hooks
     model(input_data)
 
-    # Remove hooks after use to avoid memory leaks
     for hook in hooks:
         hook.remove()
 
@@ -519,23 +516,20 @@ def get_entropy(mat):
   return shannon_entropy
 
 def get_all_layer_outputs(model, input_data):
-    # Dictionary to store layer outputs
     layer_outputs = {}
 
-    # Function to be called by the hook
     def hook_fn(module, input, output):
         layer_outputs[module] = output
 
-    # Register hooks on all linear layers
     hooks = []
-    for name, module in model.named_modules():
+    # Scope hooks to MLP sub-module only (CNNClassifier), else hook full model.
+    target = getattr(model, 'classifier', model)
+    for name, module in target.named_modules():
         if isinstance(module, torch.nn.Linear):
             hooks.append(module.register_forward_hook(hook_fn))
 
-    # Perform a forward pass with the input data to trigger the hooks
     model(input_data)
 
-    # Remove hooks after use to avoid memory leaks
     for hook in hooks:
         hook.remove()
 

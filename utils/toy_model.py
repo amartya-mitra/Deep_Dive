@@ -98,6 +98,78 @@ class Classifier(nn.Module):
     def forward(self, x):
         return self.model(x)
 
+class CNNEncoder(nn.Module):
+    def __init__(self, embed_dim=128):
+        """
+        Args:
+            embed_dim : int — dimensionality of the output embedding vector.
+        """
+        super().__init__()
+        self.conv_blocks = nn.Sequential(
+            nn.Conv2d(1, 16, kernel_size=3, padding=1),
+            nn.BatchNorm2d(16),
+            nn.ReLU(),
+            nn.MaxPool2d(2),
+            nn.Conv2d(16, 32, kernel_size=3, padding=1),
+            nn.BatchNorm2d(32),
+            nn.ReLU(),
+            nn.MaxPool2d(2),
+            nn.Conv2d(32, 64, kernel_size=3, padding=1),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.MaxPool2d(2),
+        )
+        self.gap = nn.AdaptiveAvgPool2d(1)
+        self.proj = nn.Linear(64, embed_dim)
+
+    def forward(self, x):
+        """
+        Args:
+            x : FloatTensor (N, 4096) — flattened 64×64 grayscale images.
+        Returns:
+            embedding : FloatTensor (N, embed_dim)
+        """
+        x = x.view(x.size(0), 1, 64, 64)
+        x = self.conv_blocks(x)
+        x = self.gap(x)
+        x = x.view(x.size(0), -1)
+        return self.proj(x)
+
+
+class CNNClassifier(nn.Module):
+    def __init__(self, embed_dim, num_hidden_layers, hidden_layer_width,
+                 output_dim, activation_func, dropout=0.0):
+        """
+        Args:
+            embed_dim          : int — CNN encoder output dimension (input to MLP).
+            num_hidden_layers  : int — number of hidden layers in the MLP.
+            hidden_layer_width : int — width of each MLP hidden layer.
+            output_dim         : int — number of output classes.
+            activation_func    : str — passed through to Classifier.
+            dropout            : float — passed through to Classifier.
+        """
+        super().__init__()
+        self.encoder = CNNEncoder(embed_dim=embed_dim)
+        self.classifier = Classifier(
+            input_dim=embed_dim,
+            num_hidden_layers=num_hidden_layers,
+            hidden_layer_width=hidden_layer_width,
+            output_dim=output_dim,
+            activation_func=activation_func,
+            dropout=dropout,
+        )
+
+    def forward(self, x):
+        """
+        Args:
+            x : FloatTensor (N, 4096) — flat pixel input.
+        Returns:
+            logits : FloatTensor (N, output_dim)
+        """
+        embedding = self.encoder(x)
+        return self.classifier(embedding)
+
+
 class NTK(torch.nn.Module):
     def __init__(self, net):
       super().__init__()
