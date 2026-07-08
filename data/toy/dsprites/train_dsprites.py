@@ -4,6 +4,7 @@ import argparse
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import matplotlib
 matplotlib.use('Agg') # Non-interactive backend
 import matplotlib.pyplot as plt
@@ -26,6 +27,24 @@ from utils.plot import *
 from data.toy.dsprites.dsprites_data import (load_dsprites, generate_labels,
                                               generate_labels_6class,
                                               filter_dataset_for_bias_6class)
+
+
+def downsample_flat(X_flat, from_size=64, to_size=32):
+    """
+    Downsample flattened square grayscale images via bilinear interpolation.
+
+    Args:
+        X_flat    : FloatTensor (N, from_size*from_size)
+        from_size : int — side length of the input images.
+        to_size   : int — side length of the downsampled images.
+    Returns:
+        FloatTensor (N, to_size*to_size)
+    """
+    X_img = X_flat.view(-1, 1, from_size, from_size)
+    X_small = F.interpolate(X_img, size=(to_size, to_size),
+                            mode='bilinear', align_corners=False)
+    return X_small.view(-1, to_size * to_size)
+
 
 def filter_dataset_for_bias(X, latents_classes, latents_values, core_indices, spurious_indices, p_correlation, seed=42, logic='OR'):
     """
@@ -108,8 +127,14 @@ def run_experiment(depth=None):
     # ------------------------------------------------------------------ #
     USE_SPURIOUS    = True   # Set False to disable spurious correlation
     P_CORRELATION   = 0.7   # Only used when USE_SPURIOUS=True
-    USE_CNN_ENCODER = True   # Set False to revert to plain MLP on flat pixels
-    EMBED_DIM       = 128    # CNN encoder output dimension (input to MLP)
+
+    # 'flat_pixels' -> Option A: no CNN, 32x32 downsampled flat input
+    # 'frozen_cnn'  -> Option B: CNN encoder present but frozen (random
+    #                  init, untrained), embed_dim=512
+    ENCODER_MODE = os.environ.get('ENCODER_MODE', 'flat_pixels')
+    assert ENCODER_MODE in ('flat_pixels', 'frozen_cnn')
+    print(f"Running with ENCODER_MODE = {ENCODER_MODE}", flush=True)
+    EMBED_DIM = 512          # frozen CNN encoder output dimension
 
     # ------------------------------------------------------------------ #
     # 1. Data                                                              #
@@ -118,6 +143,8 @@ def run_experiment(depth=None):
 
     # Training pool (all 3 shapes kept)
     X_raw, _, lv_raw, _, lc_raw, _ = load_dsprites(dsprites_path, n_samples=50000)
+    if ENCODER_MODE == 'flat_pixels':
+        X_raw = downsample_flat(X_raw)
     labels_raw, scale_bin_raw = generate_labels_6class(lc_raw, lv_raw)
 
     print("Constructing Training Set...", flush=True)
@@ -134,6 +161,8 @@ def run_experiment(depth=None):
     _, X_test_pool, _, lv_test_pool, _, lc_test_pool = load_dsprites(
         dsprites_path, n_samples=5000, seed=999
     )
+    if ENCODER_MODE == 'flat_pixels':
+        X_test_pool = downsample_flat(X_test_pool)
     labels_test, scale_bin_test = generate_labels_6class(lc_test_pool, lv_test_pool)
 
     # OOD: no spurious correlation (natural distribution)
@@ -185,9 +214,9 @@ def run_experiment(depth=None):
     depths_to_run = [depth] if depth is not None else all_depths
     hidden_dim  = 1024
     num_classes = 6
-    input_dim   = EMBED_DIM if USE_CNN_ENCODER else 4096
+    input_dim   = 1024 if ENCODER_MODE == 'flat_pixels' else EMBED_DIM
 
-    figs_dir = os.path.join(root_dir, 'figs/dsprites')
+    figs_dir = os.path.join(root_dir, 'figs/dsprites', ENCODER_MODE)
     dirs = {
         'cka':             os.path.join(figs_dir, 'cka'),
         'probe':           os.path.join(figs_dir, 'probe'),
@@ -199,7 +228,7 @@ def run_experiment(depth=None):
     for d in dirs.values():
         os.makedirs(d, exist_ok=True)
 
-    results_save_dir = os.path.join(root_dir, 'logs/dsprites')
+    results_save_dir = os.path.join(root_dir, 'logs/dsprites', ENCODER_MODE)
     os.makedirs(results_save_dir, exist_ok=True)
 
     # Accumulators (used when running all depths sequentially)
@@ -214,7 +243,7 @@ def run_experiment(depth=None):
     for d in depths_to_run:
         print(f"\nTraining Depth {d}...", flush=True)
 
-        if USE_CNN_ENCODER:
+        if ENCODER_MODE == 'frozen_cnn':
             model = CNNClassifier(
                 embed_dim=EMBED_DIM,
                 num_hidden_layers=d,
@@ -222,8 +251,12 @@ def run_experiment(depth=None):
                 output_dim=num_classes,
                 activation_func='relu',
                 dropout=0.0,
+                freeze_encoder=True,
             )
-        else:
+            n_trainable_enc = sum(p.requires_grad for p in model.encoder.parameters())
+            print(f"  Frozen encoder sanity: trainable encoder params = "
+                  f"{n_trainable_enc} (expected 0)", flush=True)
+        else:  # flat_pixels
             model = Classifier(input_dim, d, hidden_dim, num_classes, 'relu', dropout=0.0)
 
         train_dict = {
@@ -313,12 +346,15 @@ def run_experiment(depth=None):
 
 def generate_summary_plots():
     """
-    Read saved per-depth results from logs/dsprites/ and generate summary plots.
-    Run this after all parallel depth jobs have finished:
-        python data/toy/dsprites/train_dsprites.py --summary
+    Read saved per-depth results from logs/dsprites/<ENCODER_MODE>/ and
+    generate summary plots for that mode. Run after all parallel depth jobs
+    for a given mode have finished:
+        ENCODER_MODE=flat_pixels python data/toy/dsprites/train_dsprites.py --summary
     """
+    encoder_mode = os.environ.get('ENCODER_MODE', 'flat_pixels')
+    assert encoder_mode in ('flat_pixels', 'frozen_cnn')
     all_depths = [3, 4, 5, 6, 7, 8]
-    results_save_dir = os.path.join(root_dir, 'logs/dsprites')
+    results_save_dir = os.path.join(root_dir, 'logs/dsprites', encoder_mode)
 
     id_accuracies     = []
     ood_accuracies    = []
@@ -342,7 +378,7 @@ def generate_summary_plots():
         print("No saved results found. Run per-depth jobs first.", flush=True)
         return
 
-    summary_dir = os.path.join(root_dir, 'figs/dsprites/summary')
+    summary_dir = os.path.join(root_dir, 'figs/dsprites', encoder_mode, 'summary')
     os.makedirs(summary_dir, exist_ok=True)
     _generate_summary(depths_found, id_accuracies, ood_accuracies,
                       peak_cka_depths, all_rank_profiles, summary_dir)

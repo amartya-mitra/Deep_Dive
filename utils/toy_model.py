@@ -138,7 +138,8 @@ class CNNEncoder(nn.Module):
 
 class CNNClassifier(nn.Module):
     def __init__(self, embed_dim, num_hidden_layers, hidden_layer_width,
-                 output_dim, activation_func, dropout=0.0):
+                 output_dim, activation_func, dropout=0.0,
+                 freeze_encoder=False):
         """
         Args:
             embed_dim          : int — CNN encoder output dimension (input to MLP).
@@ -147,9 +148,14 @@ class CNNClassifier(nn.Module):
             output_dim         : int — number of output classes.
             activation_func    : str — passed through to Classifier.
             dropout            : float — passed through to Classifier.
+            freeze_encoder     : bool — if True, freeze the CNN encoder (random
+                                 init, no gradient updates) so only the MLP trains.
         """
         super().__init__()
         self.encoder = CNNEncoder(embed_dim=embed_dim)
+        if freeze_encoder:
+            for param in self.encoder.parameters():
+                param.requires_grad = False
         self.classifier = Classifier(
             input_dim=embed_dim,
             num_hidden_layers=num_hidden_layers,
